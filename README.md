@@ -27,3 +27,11 @@ python fisheye2equirect.py
 ```
 Равнопромежуточные проекции будут сохранены в папках `.data_2d_equirect/2013_05_28_drive_*_sync/data_rgb/`
 
+### Cегментация изображений
+1. Веса модели `Segment Anything` должны находиться по этому пути `ckpt/sam_vit_h_4b8939.pth`
+2. Запустить скрипт для сегментации изображений
+```bash
+python segment2d.py
+```
+Результаты будут сохранены в папке `data_2d_semantics/'
+
