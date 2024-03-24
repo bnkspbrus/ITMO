@@ -33,5 +33,5 @@ python fisheye2equirect.py
 ```bash
 python segment2d.py
 ```
-Результаты будут сохранены в папке `data_2d_semantics/'
+Результаты будут сохранены в папке `data_2d_semantics/`
 
