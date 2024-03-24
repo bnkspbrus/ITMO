@@ -1,3 +1,9 @@
 numpy==1.21.1
 opencv-python
 tqdm
+py360convert
+transformers
+torch
+torchvision
+torchaudio
+pycocotools
