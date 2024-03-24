@@ -74,7 +74,7 @@ def dual_fisheye2equirect(img1, img2):
     equi2 = np.roll(equi2, OUT_SHAPE[1] // 2, axis=1)
     equi = np.copy(equi2)
     equi[:, OUT_SHAPE[1] // 4:-(OUT_SHAPE[1] // 4)] = equi1[:, OUT_SHAPE[1] // 4:-(OUT_SHAPE[1] // 4)]
-    return equi
+    return equi[:, ::-1]
 
 
 DATA_2D_RAW = 'KITTI-360/data_2d_raw'
