@@ -6,7 +6,6 @@ import pycocotools.mask as maskUtils
 from segformer import segformer_segmentation as segformer_func
 from configs.cityscapes_id2label import CONFIG as CONFIG_CITYSCAPES_ID2LABEL
 from kitti360scripts.helpers.labels import name2label
-import kitti360scripts
 
 
 def inference(filename, output_path, img=None,
