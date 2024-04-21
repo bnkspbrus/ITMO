@@ -25,7 +25,7 @@ pip install -r requirements.txt
 ```bash
 python fisheye2equirect.py
 ```
-Равнопромежуточные проекции будут сохранены в папках `.data_2d_equirect/2013_05_28_drive_*_sync/data_rgb/`
+Равнопромежуточные проекции будут сохранены в папках `data_2d_equirect/2013_05_28_drive_*_sync/data_rgb/`
 
 ### Cегментация изображений
 1. Веса модели `Segment Anything` должны находиться по этому пути `ckpt/sam_vit_h_4b8939.pth`
