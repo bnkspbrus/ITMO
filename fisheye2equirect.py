@@ -1,9 +1,9 @@
 import cv2
 import numpy as np
 import os
-import glob
 import tqdm
 from kitti360scripts.helpers.project import CameraFisheye
+from multiprocessing import Pool
 
 
 def dual_fisheye2equirect(srcFrame, cam1, cam2):
@@ -68,17 +68,38 @@ DATA_2D_EQUIRECT = 'data_2d_equirect'
 cam1 = CameraFisheye(KITTI360_PATH, cam_id=2)
 cam2 = CameraFisheye(KITTI360_PATH, cam_id=3)
 
-for folder in glob.glob(os.path.join(DATA_2D_RAW, '2013_05_28_drive_*_sync')):
-    images_02 = glob.glob(os.path.join(folder, 'image_02/data_rgb/*.png'))
-    images_03 = glob.glob(os.path.join(folder, 'image_03/data_rgb/*.png'))
-    images_02 = sorted(images_02, key=lambda x: int(os.path.basename(x).split('.')[0]))
-    images_03 = sorted(images_03, key=lambda x: int(os.path.basename(x).split('.')[0]))
-    for image_02, image_03 in tqdm.tqdm(zip(images_02, images_03), total=len(images_02), desc=os.path.basename(folder)):
-        assert os.path.basename(image_02) == os.path.basename(image_03), "Image names do not match for folder: {folder}"
-        img_02 = cv2.imread(image_02)
-        img_03 = cv2.imread(image_03)
-        srcFrame = np.hstack((img_02, img_03))
-        equi = dual_fisheye2equirect(srcFrame, cam1, cam2)
-        out_path = os.path.join(DATA_2D_EQUIRECT, os.path.basename(folder), os.path.basename(image_02))
-        os.makedirs(os.path.dirname(out_path), exist_ok=True)
-        cv2.imwrite(out_path, equi)
+
+def process_image(folder, image_02, image_03):
+    if image_02 != image_03:
+        return
+    img_02 = cv2.imread(os.path.join(DATA_2D_RAW, folder, 'image_02', 'data_rgb', image_02))
+    img_03 = cv2.imread(os.path.join(DATA_2D_RAW, folder, 'image_03', 'data_rgb', image_03))
+    srcFrame = np.hstack((img_02, img_03))
+    equi = dual_fisheye2equirect(srcFrame, cam1, cam2)
+    out_path = os.path.join(DATA_2D_EQUIRECT, os.path.basename(folder), os.path.basename(image_02))
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    cv2.imwrite(out_path, equi)
+
+
+def main():
+    for folder in os.listdir(DATA_2D_RAW):
+        if not os.path.exists(os.path.join(DATA_2D_RAW, folder, 'image_02')):
+            continue
+        if not os.path.exists(os.path.join(DATA_2D_RAW, folder, 'image_03')):
+            continue
+        if not os.path.exists(os.path.join(DATA_2D_RAW, folder, 'image_02', 'data_rgb')):
+            continue
+        if not os.path.exists(os.path.join(DATA_2D_RAW, folder, 'image_03', 'data_rgb')):
+            continue
+        images_02 = os.listdir(os.path.join(DATA_2D_RAW, folder, 'image_02', 'data_rgb'))
+        images_03 = os.listdir(os.path.join(DATA_2D_RAW, folder, 'image_03', 'data_rgb'))
+        images_02 = [image for image in images_02 if image.endswith('.png')]
+        images_03 = [image for image in images_03 if image.endswith('.png')]
+        images_02 = sorted(images_02, key=lambda x: int(x.split('.')[0]))
+        images_03 = sorted(images_03, key=lambda x: int(x.split('.')[0]))
+        with Pool(8) as p:
+            p.starmap(process_image, [(folder, image_02, image_03) for image_02, image_03 in zip(images_02, images_03)])
+
+
+if __name__ == '__main__':
+    main()
