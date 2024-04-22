@@ -7,3 +7,5 @@ torch
 torchvision
 torchaudio
 pycocotools
+pillow
+matplotlib
