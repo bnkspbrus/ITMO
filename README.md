@@ -31,7 +31,10 @@ python fisheye2equirect.py
 1. Веса модели `Segment Anything` должны находиться по этому пути `ckpt/sam_vit_h_4b8939.pth`
 2. Запустить скрипт для сегментации изображений
 ```bash
-python segment2d.py
+python segmentation2d.py
 ```
-Результаты будут сохранены в папке `data_2d_semantics/`
+Результаты будут сохранены в папках `data_2d_semantics/2013_05_28_drive_*_sync/(instance|semantic)/`. 
+В папках `data_2d_semantics/2013_05_28_drive_*_sync/semantic_rgb/` будут сохранены изображения сегментации в формате RGB (для визуализации)
+
+### Построение карты
 
