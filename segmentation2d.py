@@ -8,36 +8,51 @@ from transformers import AutoImageProcessor, Mask2FormerForUniversalSegmentation
 from kitti360scripts.helpers.labels import trainId2label
 import matplotlib.pyplot as plt
 
+device = (
+    "cuda"
+    if torch.cuda.is_available()
+    else "mps"
+    if torch.backends.mps.is_available()
+    else "cpu"
+)
+
 DATA_2D_EQUIRECT = "data_2d_equirect"
 DATA_2D_SEMANTICS = "data_2d_semantics"
 
 processor = AutoImageProcessor.from_pretrained("facebook/mask2former-swin-large-cityscapes-panoptic")
-model = Mask2FormerForUniversalSegmentation.from_pretrained("facebook/mask2former-swin-large-cityscapes-panoptic")
+model = (Mask2FormerForUniversalSegmentation
+         .from_pretrained("facebook/mask2former-swin-large-cityscapes-panoptic")
+         .to(device))
 
 for folder in os.listdir(DATA_2D_EQUIRECT):
-    for file in tqdm.tqdm(os.listdir(os.path.join(DATA_2D_EQUIRECT, folder)), desc='Processing ' + folder):
+    # for file in tqdm.tqdm(os.listdir(os.path.join(DATA_2D_EQUIRECT, folder)), desc='Processing ' + folder):
+    for i in tqdm.tqdm(range(2, 386)):
+        file = '%010d.png' % i
         pano = np.array(Image.open(os.path.join(DATA_2D_EQUIRECT, folder, file)))
         cubes = [
             py360convert.e2c(pano, face_w=700),
             py360convert.e2c(np.roll(pano, -350, axis=1), face_w=700)
         ]
         cubes = [np.roll(cube, -700, axis=1) for cube in cubes]
+        images = []
         for i in range(8):
             cube = cubes[i % 2]
             image = cube[700:1400, 700 * (i // 2):700 * (i // 2 + 1)]
             image = Image.fromarray(image)
-            inputs = processor(images=image, return_tensors="pt")
+            images.append(image)
+        inputs = processor(images=images, return_tensors="pt").to(device)
 
-            with torch.no_grad():
-                outputs = model(**inputs)
+        with torch.no_grad():
+            outputs = model(**inputs)
 
-            class_queries_logits = outputs.class_queries_logits
-            masks_queries_logits = outputs.masks_queries_logits
+        class_queries_logits = outputs.class_queries_logits
+        masks_queries_logits = outputs.masks_queries_logits
 
-            result = processor.post_process_panoptic_segmentation(outputs, target_sizes=[image.size[::-1]],
-                                                                  label_ids_to_fuse=set())[0]
+        results = processor.post_process_panoptic_segmentation(outputs, target_sizes=[
+            image.size[::-1] for image in images], label_ids_to_fuse=set())
+        for i, result in enumerate(results):
             instance_segmentation = result["segmentation"]
-            instance_segmentation = np.array(instance_segmentation)
+            instance_segmentation = instance_segmentation.cpu().numpy()
             instance_path = os.path.join(DATA_2D_SEMANTICS, folder, 'instance', file.split('.')[0], str(i) + '.png')
             os.makedirs(os.path.dirname(instance_path), exist_ok=True)
             Image.fromarray(instance_segmentation).save(instance_path)
