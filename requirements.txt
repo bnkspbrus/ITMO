@@ -9,3 +9,4 @@ torchaudio
 pycocotools
 pillow
 matplotlib
+open3d
