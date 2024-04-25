@@ -6,6 +6,37 @@ from kitti360scripts.helpers.project import CameraFisheye
 from multiprocessing import Pool
 
 
+def cam2image(cam, points):
+    points = points.T
+    norm = np.linalg.norm(points, axis=1)
+
+    x = points[:, 0] / norm
+    y = points[:, 1] / norm
+    z = points[:, 2] / norm
+
+    x /= z + cam.fi['mirror_parameters']['xi']
+    y /= z + cam.fi['mirror_parameters']['xi']
+
+    k1 = cam.fi['distortion_parameters']['k1']
+    k2 = cam.fi['distortion_parameters']['k2']
+    gamma1 = cam.fi['projection_parameters']['gamma1']
+    gamma2 = cam.fi['projection_parameters']['gamma2']
+    u0 = cam.fi['projection_parameters']['u0']
+    v0 = cam.fi['projection_parameters']['v0']
+
+    ro2 = x * x + y * y
+    x *= 1 + k1 * ro2 + k2 * ro2 * ro2
+    y *= 1 + k1 * ro2 + k2 * ro2 * ro2
+
+    undistorted = np.array([x, y, np.ones_like(x)]).T
+    undistorted = undistorted.reshape(-1, 1, 3)
+    K = np.array([[gamma1, 0, u0], [0, gamma2, v0], [0, 0, 1]])
+    points_image, _ = cv2.projectPoints(undistorted, np.zeros(3), np.zeros(3), K, None)
+    x, y = points_image[:, 0, 0], points_image[:, 0, 1]
+
+    return x, y, norm * points[:, 2] / np.abs(points[:, 2])
+
+
 def dual_fisheye2equirect(srcFrame, cam1, cam2):
     inShape = srcFrame.shape[:2]
     outShape = srcFrame.shape[:2]
@@ -40,8 +71,8 @@ def dual_fisheye2equirect(srcFrame, cam1, cam2):
     points_local1 = cam1.world2cam(vertices1, cam2pose1[:3, :3], cam2pose1[:3, 3], True)
     points_local2 = cam2.world2cam(vertices2, cam2pose2[:3, :3], cam2pose2[:3, 3], True)
 
-    map_x1, map_y1, depth1 = cam1.cam2image(points_local1)
-    map_x2, map_y2, depth2 = cam2.cam2image(points_local2)
+    map_x1, map_y1, depth1 = cam2image(cam1, points_local1)
+    map_x2, map_y2, depth2 = cam2image(cam2, points_local2)
 
     map_x = np.zeros(Hd * Wd, dtype=np.float32)
     map_y = np.zeros(Hd * Wd, dtype=np.float32)
@@ -63,8 +94,8 @@ def dual_fisheye2equirect(srcFrame, cam1, cam2):
 
 
 KITTI360_PATH = 'KITTI-360'
-DATA_2D_RAW = 'KITTI-360/data_2d_raw'
-DATA_2D_EQUIRECT = 'data_2d_equirect'
+DATA_2D_RAW = 'data_2d_raw'
+DATA_2D_EQUIRECT = 'data_2d_equi'
 cam1 = CameraFisheye(KITTI360_PATH, cam_id=2)
 cam2 = CameraFisheye(KITTI360_PATH, cam_id=3)
 
