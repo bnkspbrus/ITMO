@@ -79,7 +79,7 @@ cam3 = CameraFisheyeV2(KITTI_360, cam_id=3)
 
 
 def process_image(image_name, seq, cam_id):
-    image_path = os.path.join(KITTI_360, DATA_2D_RAW, seq, f'image_{cam_id}', 'data_rgb', image_name)
+    image_path = os.path.join(KITTI_360, DATA_2D_RAW, seq, f'image_0{cam_id}', 'data_rgb', image_name)
     image = cv2.imread(image_path)
     if cam_id == 0:
         equi = image2equirect(image, cam0)
@@ -89,8 +89,8 @@ def process_image(image_name, seq, cam_id):
         equi = image2equirect(image, cam3)
     else:
         raise ValueError('Invalid cam_id')
-    out_path = os.path.join(DATA_2D_EQUIRECT, seq, f'image_{cam_id}', image_name)
-    os.makedirs(out_path, exist_ok=True)
+    out_path = os.path.join(DATA_2D_EQUIRECT, seq, f'image_0{cam_id}', image_name)
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     cv2.imwrite(out_path, equi)
 
 
@@ -98,11 +98,11 @@ def main():
     for folder in os.listdir(DATA_2D_RAW):
         images = []
         for cam_id in range(4):
-            images_path = os.path.join(DATA_2D_RAW, folder, f'image_{cam_id}', 'data_rgb')
-            if not os.path.exists(images_path):
+            images_path = os.path.join(DATA_2D_RAW, folder, f'image_0{cam_id}', 'data_rgb')
+            if not os.path.isdir(images_path):
                 continue
             images += [(image, folder, cam_id) for image in os.listdir(images_path) if image.endswith('.png')]
-        with Pool() as p:
+        with Pool(os.cpu_count() // 2) as p:
             p.starmap(process_image, images)
 
 
