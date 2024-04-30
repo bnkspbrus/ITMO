@@ -90,20 +90,19 @@ def process_image(image_name, seq, cam_id):
     else:
         raise ValueError('Invalid cam_id')
     out_path = os.path.join(DATA_2D_EQUIRECT, seq, f'image_0{cam_id}', image_name)
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     cv2.imwrite(out_path, equi)
 
 
 def main():
-    for folder in os.listdir(DATA_2D_RAW):
-        images = []
+    for folder in os.listdir(os.path.join(KITTI_360, DATA_2D_RAW)):
         for cam_id in range(4):
-            images_path = os.path.join(DATA_2D_RAW, folder, f'image_0{cam_id}', 'data_rgb')
-            if not os.path.isdir(images_path):
+            images = os.path.join(KITTI_360, DATA_2D_RAW, folder, f'image_0{cam_id}', 'data_rgb')
+            if not os.path.isdir(images):
                 continue
-            images += [(image, folder, cam_id) for image in os.listdir(images_path) if image.endswith('.png')]
-        with Pool(os.cpu_count() // 2) as p:
-            p.starmap(process_image, images)
+            images = os.listdir(images)
+            os.makedirs(os.path.join(DATA_2D_EQUIRECT, folder, f'image_0{cam_id}'), exist_ok=True)
+            for image in tqdm.tqdm(images, desc=f'Processing {folder} cam {cam_id}'):
+                process_image(image, folder, cam_id)
 
 
 if __name__ == '__main__':
