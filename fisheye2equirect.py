@@ -74,7 +74,7 @@ KITTI_360 = 'KITTI-360'
 DATA_2D_RAW = 'data_2d_raw'
 DATA_2D_EQUIRECT = 'data_2d_equirect'
 cam0 = CameraPerspective(KITTI_360, cam_id=0)
-cam1 = CameraFisheyeV2(KITTI_360, cam_id=1)
+cam1 = CameraPerspective(KITTI_360, cam_id=1)
 cam2 = CameraFisheyeV2(KITTI_360, cam_id=2)
 cam3 = CameraFisheyeV2(KITTI_360, cam_id=3)
 
@@ -99,7 +99,7 @@ def process_image(args):
 
 def main():
     for folder in os.listdir(os.path.join(KITTI_360, DATA_2D_RAW)):
-        for cam_id in range(4):
+        for cam_id in (3,):#range(4):
             images = os.path.join(KITTI_360, DATA_2D_RAW, folder, f'image_0{cam_id}', 'data_rgb')
             if not os.path.isdir(images):
                 continue
