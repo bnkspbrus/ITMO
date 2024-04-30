@@ -74,6 +74,7 @@ KITTI_360 = 'KITTI-360'
 DATA_2D_RAW = 'data_2d_raw'
 DATA_2D_EQUIRECT = 'data_2d_equirect'
 cam0 = CameraPerspective(KITTI_360, cam_id=0)
+cam1 = CameraFisheyeV2(KITTI_360, cam_id=1)
 cam2 = CameraFisheyeV2(KITTI_360, cam_id=2)
 cam3 = CameraFisheyeV2(KITTI_360, cam_id=3)
 
@@ -84,6 +85,8 @@ def process_image(args):
     image = cv2.imread(image_path)
     if cam_id == 0:
         equi = image2equirect(image, cam0)
+    elif cam_id == 1:
+        equi = image2equirect(image, cam1)
     elif cam_id == 2:
         equi = image2equirect(image, cam2)
     elif cam_id == 3:
