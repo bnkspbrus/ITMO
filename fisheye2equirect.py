@@ -78,7 +78,8 @@ cam2 = CameraFisheyeV2(KITTI_360, cam_id=2)
 cam3 = CameraFisheyeV2(KITTI_360, cam_id=3)
 
 
-def process_image(image_name, seq, cam_id):
+def process_image(args):
+    image_name, seq, cam_id = args
     image_path = os.path.join(KITTI_360, DATA_2D_RAW, seq, f'image_0{cam_id}', 'data_rgb', image_name)
     image = cv2.imread(image_path)
     if cam_id == 0:
@@ -101,8 +102,9 @@ def main():
                 continue
             images = os.listdir(images)
             os.makedirs(os.path.join(DATA_2D_EQUIRECT, folder, f'image_0{cam_id}'), exist_ok=True)
-            for image in tqdm.tqdm(images, desc=f'Processing {folder} cam {cam_id}'):
-                process_image(image, folder, cam_id)
+            with Pool(4) as p:
+                list(tqdm.tqdm(p.imap_unordered(process_image, ((image, folder, cam_id) for image in images)),
+                               total=len(images)))
 
 
 if __name__ == '__main__':
