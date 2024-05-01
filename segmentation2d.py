@@ -8,6 +8,14 @@ from transformers import AutoImageProcessor, Mask2FormerForUniversalSegmentation
 from kitti360scripts.helpers.labels import trainId2label
 import matplotlib.pyplot as plt
 
+trainId2labelId = np.zeros(256, dtype=np.uint8)
+for trainId, label in trainId2label.items():
+    trainId2labelId[trainId] = label.id
+
+trainId2color = np.zeros((256, 3), dtype=np.uint8)
+for trainId, label in trainId2label.items():
+    trainId2color[trainId] = label.color
+
 device = (
     "cuda"
     if torch.cuda.is_available()
@@ -70,4 +78,12 @@ for folder in os.listdir(DATA_2D_EQUIRECT):
             for segment_info in segments_info:
                 id2labelId[segment_info["id"]] = segment_info["label_id"]
             label_ids = id2labelId[instances]
+            semantics = trainId2labelId[label_ids]
+            semantics_path = os.path.join(DATA_2D_SEMANTICS, folder, 'semantic', f'{i:010d}', f'{j}.png')
+            os.makedirs(os.path.dirname(semantics_path), exist_ok=True)
+            Image.fromarray(semantics).save(semantics_path)
 
+            semantics_rgb = trainId2color[label_ids]
+            semantics_rgb_path = os.path.join(DATA_2D_SEMANTICS, folder, 'semantic_rgb', f'{i:010d}', f'{j}.png')
+            os.makedirs(os.path.dirname(semantics_rgb_path), exist_ok=True)
+            Image.fromarray(semantics_rgb).save(semantics_rgb_path)
