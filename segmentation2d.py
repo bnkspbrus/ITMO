@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 device = (
     "cuda"
     if torch.cuda.is_available()
-    else "mps"
-    if torch.backends.mps.is_available()
+    # else "mps"
+    # if torch.backends.mps.is_available()
     else "cpu"
 )
 
@@ -36,6 +36,38 @@ for folder in os.listdir(DATA_2D_EQUIRECT):
         image_03 = Image.open(image_03_path)
         image_02 = np.roll(np.array(image_02), -350, axis=1)
         image_03 = np.roll(np.array(image_03), 1050, axis=1)
-        Image.fromarray(image_02).save('test_02.png')
-        Image.fromarray(image_03).save('test_03.png')
-        break
+        image = np.copy(image_03)
+        image[:, 350:1750] = image_02[:, 350:1750]
+        cubes = [
+            py360convert.e2c(image, face_w=700),
+            py360convert.e2c(np.roll(image, -350, axis=1), face_w=700)
+        ]
+        sides = []
+        for j in range(6):
+            ii = j % 3
+            cube = cubes[ii % 2]
+            side = cube[700:1400, 1400 * (j // 3) + 700 * (ii // 2):1400 * (j // 3) + 700 * (ii // 2 + 1)]
+            sides.append(side)
+        inputs = processor(images=sides, return_tensors="pt").to(device)
+
+        with torch.no_grad():
+            outputs = model(**inputs)
+
+        class_queries_logits = outputs.class_queries_logits
+        masks_queries_logits = outputs.masks_queries_logits
+
+        results = processor.post_process_panoptic_segmentation(outputs, target_sizes=[side.shape[:2] for side in sides])
+
+        for j, result in enumerate(results):
+            instances = result["segmentation"]
+            instances = instances.cpu().numpy()
+            instances_path = os.path.join(DATA_2D_SEMANTICS, folder, 'instance', f'{i:010d}', f'{j}.png')
+            os.makedirs(os.path.dirname(instances_path), exist_ok=True)
+            Image.fromarray(instances).save(instances_path)
+
+            segments_info = result["segments_info"]
+            id2labelId = np.zeros(len(segments_info) + 2, dtype=np.uint8)
+            for segment_info in segments_info:
+                id2labelId[segment_info["id"]] = segment_info["label_id"]
+            label_ids = id2labelId[instances]
+
