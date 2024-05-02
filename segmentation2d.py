@@ -37,17 +37,16 @@ model = (Mask2FormerForUniversalSegmentation
 class SidesDataset(Dataset):
     def __init__(self, folder):
         self.folder = folder
-        self.images = os.listdir(os.path.join(DATA_2D_EQUIRECT, folder, 'image_02'))
-        self.min_frame = min(int(image.split('.')[0]) for image in self.images)
-        self.max_frame = max(int(image.split('.')[0]) for image in self.images)
+        self.files = os.listdir(os.path.join(DATA_2D_EQUIRECT, folder, 'image_02'))
+        self.files = list(filter(lambda x: x.endswith('.png'), self.files))
 
     def __len__(self):
-        return self.max_frame - self.min_frame + 1
+        return len(self.files)
 
     def __getitem__(self, idx):
-        i = self.min_frame + idx
-        image_02 = Image.open(os.path.join(DATA_2D_EQUIRECT, self.folder, 'image_02', f'{i:010d}.png'))
-        image_03_path = os.path.join(DATA_2D_EQUIRECT, self.folder, 'image_03', f'{i:010d}.png')
+        file = self.files[idx]
+        image_02 = Image.open(os.path.join(DATA_2D_EQUIRECT, self.folder, 'image_02', file))
+        image_03_path = os.path.join(DATA_2D_EQUIRECT, self.folder, 'image_03', file)
         if not os.path.exists(image_03_path):
             return None
         image_03 = Image.open(image_03_path)
@@ -66,7 +65,7 @@ class SidesDataset(Dataset):
             side = cube[700:1400, 1400 * (j // 3) + 700 * (ii // 2):1400 * (j // 3) + 700 * (ii // 2 + 1)]
             sides.append(side)
 
-        return np.array(sides)
+        return np.array(sides), int(file.split('.')[0])
 
 
 def process_result(i, j, result, folder):
@@ -97,7 +96,7 @@ def main():
         dataset = SidesDataset(folder)
         loader = DataLoader(dataset, batch_size=4, num_workers=4, shuffle=False)
 
-        for sides in tqdm.tqdm(loader):
+        for sides, frame in tqdm.tqdm(loader):
             if sides is None:
                 continue
             images = list(sides.reshape(-1, 700, 700, 3))
@@ -112,8 +111,10 @@ def main():
             results = processor.post_process_panoptic_segmentation(outputs, target_sizes=list(
                 map(lambda x: x.shape[:2], images)))
 
-            list(map(lambda x: process_result(dataset.min_frame + x[0] // 6, x[0] % 6, x[1], folder),
-                     enumerate(results)))
+            frame = frame.repeat_interleave(6)
+
+            list(map(lambda x: process_result(x[0], x[1][0] % 6, x[1][1], folder),
+                     zip(frame, enumerate(results))))
 
 
 if __name__ == '__main__':
