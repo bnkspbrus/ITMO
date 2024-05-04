@@ -11,11 +11,10 @@ DATA_3D_SEMANTICS = "data_3d_semantics"
 KITTI_360 = 'KITTI_360'
 
 S = 700
-TRN = np.deg2rad(45)
 F = 350
 K = np.array([[F, 0, S / 2], [0, F, S / 2], [0, 0, 1]])
-R0 = np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]]) @ np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]])
-R1 = np.array([[-np.cos(TRN), 0, -np.sin(TRN)], [0, 1, 0], [np.sin(TRN), 0, -np.cos(TRN)]])
+TRN = np.deg2rad(45)
+R1 = np.array([[np.cos(TRN), 0, np.sin(TRN)], [0, 1, 0], [-np.sin(TRN), 0, np.cos(TRN)]]).T
 BALL_RADIUS = 1000000
 
 
@@ -49,23 +48,31 @@ def world2cam(cam, vertices, frameId):
     return cam.world2cam(vertices, R, T, True)
 
 
+def process_halfball(cam, points, colors, frameId, side0):
+    points_local = world2cam(cam, points, frameId)
+    points_local = R1.T @ points_local
+    for side in range(side0, side0 + 3):
+        u, v, depth = cam_00.cam2image(points_local)
+        mask = (u >= 0) & (u < S) & (v >= 0) & (v < S) & (depth > 0)
+        u, v, depth = u[mask], v[mask], depth[mask]
+        break
+
+
 def process_ball(args):
-    frameId, points, pcd_tree, folder, file, frame2pose, colors, cam_02, cam_03 = args
-    curr_pose = np.matmul(cam_02.cam2world[frameId], np.linalg.inv(cam_02.camToPose))
+    frameId, points, pcd_tree, folder, frame2pose, colors, cam_02, cam_03 = args
+    if frameId not in frame2pose:
+        return
+    curr_pose = frame2pose[frameId]
     T = curr_pose[:3, 3]
     ball = pcd_tree.search_radius_vector_3d(T, BALL_RADIUS)
-    vertices = points[ball[1]]
-    vcolors = colors[ball[1]]
+    ball = ball[1]
+    points = points[ball]
+    colors = colors[ball]
 
-    points_local = world2cam(cam_03, vertices, frameId)
-    u, v, depth = cam_00.cam2image(points_local)
-    mask = (u >= 0) & (u < S) & (v >= 0) & (v < S)  # & (depth > 0)
-    u, v, depth = u[mask], v[mask], depth[mask]
-    # visualize
-    image = np.zeros((S, S, 3), dtype=np.uint8)
-    image[v, u] = vcolors[mask]
-    plt.imshow(image)
-    plt.show()
+    os.makedirs(os.path.join(DATA_3D_SEMANTICS, folder, 'ball'), exist_ok=True)
+    np.save(os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frameId:010d}.npy'), ball)
+    process_halfball(cam_02, points, colors, frameId, 0)
+    process_halfball(cam_03, points, colors, frameId, 3)
 
 
 for folder in os.listdir(DATA_2D_SEMANTICS):
@@ -81,4 +88,4 @@ for folder in os.listdir(DATA_2D_SEMANTICS):
         pcd_tree = get_kdtree(points)
         fname = os.path.splitext(file)[0]
         min_frame, max_frame = map(int, fname.split('_'))
-        process_ball((250, points, pcd_tree, folder, file, frame2pose, colors, cam_02, cam_03))
+        process_ball((250, points, pcd_tree, folder, frame2pose, colors, cam_02, cam_03))
