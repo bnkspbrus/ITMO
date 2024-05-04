@@ -1,5 +1,6 @@
 from kitti360scripts.helpers.ply import read_ply
 from kitti360scripts.helpers.project import CameraPerspective, CameraFisheye
+from kitti360scripts.helpers.labels import id2label
 from PIL import Image
 import matplotlib.pyplot as plt
 import os
@@ -10,12 +11,16 @@ DATA_2D_SEMANTICS = "data_2d_semantics"
 DATA_3D_SEMANTICS = "data_3d_semantics"
 KITTI_360 = 'KITTI_360'
 
+id2color = np.zeros((256, 3), dtype=np.uint8)
+for id, label in id2label.items():
+    id2color[id] = label.color
+
 S = 700
 F = 350
 K = np.array([[F, 0, S / 2], [0, F, S / 2], [0, 0, 1]])
 TRN = np.deg2rad(45)
 R1 = np.array([[np.cos(TRN), 0, np.sin(TRN)], [0, 1, 0], [-np.sin(TRN), 0, np.cos(TRN)]]).T
-BALL_RADIUS = 1000000
+BALL_RADIUS = 1000
 
 
 class CameraPerspectiveV2(CameraPerspective):
@@ -84,6 +89,20 @@ def process_ball(args):
     np.save(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{frameId:010d}.npy'), semantic3d)
 
 
+def draw_semantic(frameId, folder):
+    semantic3d = np.load(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{frameId:010d}.npy'))
+    ball = np.load(os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frameId:010d}.npy'))
+    statics = os.path.join(KITTI_360, DATA_3D_SEMANTICS, 'train', folder, 'static')
+    ply = read_ply(os.path.join(statics, file))
+    points = np.array([ply['x'], ply['y'], ply['z']]).T
+    points = points[ball]
+    colors = id2color[semantic3d]
+    pcd = open3d.geometry.PointCloud()
+    pcd.points = open3d.utility.Vector3dVector(points)
+    pcd.colors = open3d.utility.Vector3dVector(colors / 255)
+    open3d.visualization.draw_geometries_with_editing([pcd])
+
+
 for folder in os.listdir(DATA_2D_SEMANTICS):
     statics = os.path.join(KITTI_360, DATA_3D_SEMANTICS, 'train', folder, 'static')
     frame2pose = get_frame2pose(folder)
@@ -98,3 +117,5 @@ for folder in os.listdir(DATA_2D_SEMANTICS):
         fname = os.path.splitext(file)[0]
         min_frame, max_frame = map(int, fname.split('_'))
         process_ball((250, points, pcd_tree, folder, frame2pose, colors, cam_02, cam_03))
+
+draw_semantic(250, '2013_05_28_drive_0000_sync')
