@@ -48,14 +48,19 @@ def world2cam(cam, vertices, frameId):
     return cam.world2cam(vertices, R, T, True)
 
 
-def process_halfball(cam, points, colors, frameId, side0):
+def process_halfball(cam, points, colors, frameId, side0, folder, semantic3d):
     points_local = world2cam(cam, points, frameId)
     points_local = R1.T @ points_local
     for side in range(side0, side0 + 3):
         u, v, depth = cam_00.cam2image(points_local)
         mask = (u >= 0) & (u < S) & (v >= 0) & (v < S) & (depth > 0)
         u, v, depth = u[mask], v[mask], depth[mask]
-        break
+        semantic_path = os.path.join(DATA_2D_SEMANTICS, folder, 'semantic', f'{frameId:010d}', f'{side}.png')
+        semantic = Image.open(semantic_path)
+        semantic = np.array(semantic)
+        semantic = semantic[v, u]
+        semantic3d[mask, semantic] += 1
+        points_local = R1 @ points_local
 
 
 def process_ball(args):
@@ -71,8 +76,12 @@ def process_ball(args):
 
     os.makedirs(os.path.join(DATA_3D_SEMANTICS, folder, 'ball'), exist_ok=True)
     np.save(os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frameId:010d}.npy'), ball)
-    process_halfball(cam_02, points, colors, frameId, 0)
-    process_halfball(cam_03, points, colors, frameId, 3)
+    semantic3d = np.zeros((points.shape[0], 256), dtype=np.int32)
+    process_halfball(cam_02, points, colors, frameId, 0, folder, semantic3d)
+    process_halfball(cam_03, points, colors, frameId, 3, folder, semantic3d)
+    semantic3d = np.argmax(semantic3d, axis=1).astype(np.uint8)
+    os.makedirs(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic'), exist_ok=True)
+    np.save(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{frameId:010d}.npy'), semantic3d)
 
 
 for folder in os.listdir(DATA_2D_SEMANTICS):
