@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 import open3d
+import pandas as pd
 
 DATA_2D_SEMANTICS = "data_2d_semantics"
 DATA_3D_SEMANTICS = "data_3d_semantics"
@@ -53,6 +54,14 @@ def world2cam(cam, vertices, frameId):
     return cam.world2cam(vertices, R, T, True)
 
 
+def z_buffer(u, v, depth):
+    df = pd.DataFrame({'u': u, 'v': v, 'depth': depth})
+    min_idx = df.groupby(['u', 'v'])['depth'].idxmin()
+    mask = np.zeros_like(depth, dtype=bool)
+    mask[min_idx] = True
+    return u[mask], v[mask], mask
+
+
 def process_halfball(cam, points, colors, frameId, side0, folder, semantic3d):
     points_local = world2cam(cam, points, frameId)
     points_local = R1.T @ points_local
@@ -60,6 +69,8 @@ def process_halfball(cam, points, colors, frameId, side0, folder, semantic3d):
         u, v, depth = cam_00.cam2image(points_local)
         mask = (u >= 0) & (u < S) & (v >= 0) & (v < S) & (depth > 0)
         u, v, depth = u[mask], v[mask], depth[mask]
+        u, v, dmask = z_buffer(u, v, depth)
+        mask[mask] = dmask
         semantic_path = os.path.join(DATA_2D_SEMANTICS, folder, 'semantic', f'{frameId:010d}', f'{side}.png')
         semantic = Image.open(semantic_path)
         semantic = np.array(semantic)
