@@ -3,10 +3,13 @@ from kitti360scripts.helpers.project import CameraPerspective, CameraFisheye
 from kitti360scripts.helpers.labels import id2label
 from PIL import Image
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+from torch.utils.data import Dataset, DataLoader
 import os
 import numpy as np
 import open3d
 import pandas as pd
+import re
 
 DATA_2D_SEMANTICS = "data_2d_semantics"
 DATA_3D_SEMANTICS = "data_3d_semantics"
@@ -79,14 +82,7 @@ def process_halfball(cam, points, colors, frameId, side0, folder, semantic3d):
         points_local = R1 @ points_local
 
 
-def process_ball(args):
-    frameId, points, pcd_tree, folder, frame2pose, colors, cam_02, cam_03 = args
-    if frameId not in frame2pose:
-        return
-    curr_pose = frame2pose[frameId]
-    T = curr_pose[:3, 3]
-    ball = pcd_tree.search_radius_vector_3d(T, BALL_RADIUS)
-    ball = ball[1]
+def process_ball(frameId, points, colors, ball, folder, cam_02, cam_03):
     points = points[ball]
     colors = colors[ball]
 
@@ -98,9 +94,10 @@ def process_ball(args):
     semantic3d = np.argmax(semantic3d, axis=1).astype(np.uint8)
     os.makedirs(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic'), exist_ok=True)
     np.save(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{frameId:010d}.npy'), semantic3d)
+    return semantic3d
 
 
-def draw_semantic(frameId, folder):
+def draw_semantic(frameId, folder, file):
     semantic3d = np.load(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{frameId:010d}.npy'))
     ball = np.load(os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frameId:010d}.npy'))
     statics = os.path.join(KITTI_360, DATA_3D_SEMANTICS, 'train', folder, 'static')
@@ -114,19 +111,50 @@ def draw_semantic(frameId, folder):
     open3d.visualization.draw_geometries_with_editing([pcd])
 
 
-for folder in os.listdir(DATA_2D_SEMANTICS):
-    statics = os.path.join(KITTI_360, DATA_3D_SEMANTICS, 'train', folder, 'static')
-    frame2pose = get_frame2pose(folder)
-    cam_02 = CameraFisheye(KITTI_360, folder, 2)
-    cam_03 = CameraFisheye(KITTI_360, folder, 3)
+def search_ball(frameId, frame2pose, kdtree):
+    curr_pose = frame2pose[frameId]
+    T = curr_pose[:3, 3]
+    ball = kdtree.search_radius_vector_3d(T, BALL_RADIUS)
+    return np.array(ball[1])
 
-    for file in os.listdir(statics):
-        ply = read_ply(os.path.join(statics, file))
-        points = np.array([ply['x'], ply['y'], ply['z']]).T
-        colors = np.array([ply['red'], ply['green'], ply['blue']]).T
-        pcd_tree = get_kdtree(points)
-        fname = os.path.splitext(file)[0]
-        min_frame, max_frame = map(int, fname.split('_'))
-        process_ball((250, points, pcd_tree, folder, frame2pose, colors, cam_02, cam_03))
 
-draw_semantic(250, '2013_05_28_drive_0000_sync')
+class FrameDataset(Dataset):
+    def __init__(self, folder, fname, frame2pose, cam_02, cam_03):
+        self.folder, self.frame2pose, self.cam_02, self.cam_03 = folder, frame2pose, cam_02, cam_03
+        min_frame, max_frame = map(int, os.path.splitext(fname)[0].split('_'))
+        spath = os.path.join(DATA_2D_SEMANTICS, folder, 'semantic')
+        patt = re.compile(r'^(\d{10})$')
+        self.frames = [int(f) for f in os.listdir(spath)
+                       if patt.match(f) and min_frame <= int(f) <= max_frame and int(f) in frame2pose]
+        fpath = os.path.join(KITTI_360, DATA_3D_SEMANTICS, 'train', folder, 'static', fname)
+        ply = read_ply(fpath)
+        self.points = np.array([ply['x'], ply['y'], ply['z']]).T
+        self.colors = np.array([ply['red'], ply['green'], ply['blue']]).T
+        kdtree = get_kdtree(self.points)
+        self.balls = list(tqdm(map(lambda frameId: search_ball(frameId, frame2pose, kdtree), self.frames),
+                               total=len(self.frames), desc='Searching balls'))
+
+    def __len__(self):
+        return len(self.frames)
+
+    def __getitem__(self, idx):
+        return process_ball(self.frames[idx], self.points, self.colors, self.balls[idx], self.folder, self.cam_02,
+                            self.cam_03)
+
+
+def main():
+    for folder in os.listdir(DATA_2D_SEMANTICS):
+        statics = os.path.join(KITTI_360, DATA_3D_SEMANTICS, 'train', folder, 'static')
+        frame2pose = get_frame2pose(folder)
+        cam_02 = CameraFisheye(KITTI_360, folder, 2)
+        cam_03 = CameraFisheye(KITTI_360, folder, 3)
+        for file in os.listdir(statics):
+            dataset = FrameDataset(folder, file, frame2pose, cam_02, cam_03)
+            dataloader = DataLoader(dataset, batch_size=24, num_workers=4, shuffle=False)
+            list(tqdm(dataloader, total=len(dataset)))
+
+
+if __name__ == '__main__':
+    main()
+
+# draw_semantic(250, '2013_05_28_drive_0000_sync', '0000000002_0000000385.ply')
