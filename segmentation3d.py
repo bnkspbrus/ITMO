@@ -128,13 +128,13 @@ class FrameDataset(Dataset):
         valid_frames = valid_frames[(valid_frames >= min_frame) & (valid_frames <= max_frame)]
         valid_mask = np.isin(frames, valid_frames)
         self.frames = frames[valid_mask]
-        self.poses = poses[valid_mask].reshape(-1, 3 * 4)
+        poses = poses[valid_mask].reshape(-1, 3 * 4)
         fpath = os.path.join(KITTI_360, DATA_3D_SEMANTICS, 'train', folder, 'static', fname)
         ply = read_ply(fpath)
         self.points = np.array([ply['x'], ply['y'], ply['z']]).T
         self.colors = np.array([ply['red'], ply['green'], ply['blue']]).T
         kdtree = get_kdtree(self.points)
-        self.balls = np.apply_along_axis(search_ball, 1, self.poses, kdtree)
+        self.balls = np.apply_along_axis(search_ball, 1, poses, kdtree)
 
     def __len__(self):
         return len(self.frames)
