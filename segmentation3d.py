@@ -94,7 +94,7 @@ def process_ball(frameId, points, colors, ball, folder, cam_02, cam_03):
     semantic3d = np.argmax(semantic3d, axis=1).astype(np.uint8)
     os.makedirs(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic'), exist_ok=True)
     np.save(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{frameId:010d}.npy'), semantic3d)
-    return semantic3d
+    return 0
 
 
 def draw_semantic(frameId, folder, file):
@@ -115,7 +115,7 @@ def search_ball(curr_pose, kdtree):
     curr_pose = np.reshape(curr_pose, [3, 4])
     T = curr_pose[:3, 3]
     ball = kdtree.search_radius_vector_3d(T, BALL_RADIUS)
-    return np.array(ball[1])
+    return {0: np.asarray(ball[1])}
 
 
 class FrameDataset(Dataset):
@@ -140,8 +140,7 @@ class FrameDataset(Dataset):
         return len(self.frames)
 
     def __getitem__(self, idx):
-        return process_ball(self.frames[idx], self.points, self.colors, self.balls[idx], self.folder, self.cam_02,
-                            self.cam_03)
+        return process_ball(self.frames[idx], self.points, self.colors, self.balls[idx][0], self.folder, self.cam_02, self.cam_03)
 
 
 def main():
@@ -153,7 +152,7 @@ def main():
         for file in os.listdir(statics):
             dataset = FrameDataset(folder, file, frames, poses, cam_02, cam_03)
             dataloader = DataLoader(dataset, batch_size=24, num_workers=4, shuffle=False)
-            list(tqdm(dataloader, total=len(dataset)))
+            list(tqdm(dataloader, total=len(dataloader)))
 
 
 if __name__ == '__main__':
