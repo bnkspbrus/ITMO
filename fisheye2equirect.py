@@ -99,7 +99,7 @@ def process_image(args):
 
 def main():
     for folder in os.listdir(os.path.join(KITTI_360, DATA_2D_RAW)):
-        for cam_id in (3,):#range(4):
+        for cam_id in (2, 3):
             images = os.path.join(KITTI_360, DATA_2D_RAW, folder, f'image_0{cam_id}', 'data_rgb')
             if not os.path.isdir(images):
                 continue
