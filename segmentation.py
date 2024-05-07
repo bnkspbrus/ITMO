@@ -24,7 +24,7 @@ def segment_sequence(folder, file):
             continue
         semantics = np.load(sem_path)
         semantic3d[ball, semantics] += 1
-    semantic3d = np.argmax(semantic3d, axis=1)
+    semantic3d = np.argmax(semantic3d, axis=1).astype(np.uint8)
     seq = int(folder.split('_')[-2])
     semantics_path = os.path.join(DATA_SEMANTICS, '%04d_%010d_%010d.npy' % (seq, min_frame, max_frame))
     np.save(semantics_path, semantic3d)
