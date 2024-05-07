@@ -35,12 +35,12 @@ class CameraPerspectiveV2(CameraPerspective):
 cam_00 = CameraPerspectiveV2()
 
 
-def get_frame2pose(folder):
+def frames_poses(folder):
     pose_file = os.path.join(KITTI_360, 'data_poses', folder, 'poses.txt')
     poses = np.loadtxt(pose_file)
-    frames = poses[:, 0]
+    frames = poses[:, 0].astype(np.int32)
     poses = np.reshape(poses[:, 1:], [-1, 3, 4])
-    return {frame: pose for frame, pose in zip(frames, poses)}
+    return frames, poses
 
 
 def get_kdtree(points):
@@ -111,28 +111,30 @@ def draw_semantic(frameId, folder, file):
     open3d.visualization.draw_geometries_with_editing([pcd])
 
 
-def search_ball(frameId, frame2pose, kdtree):
-    curr_pose = frame2pose[frameId]
+def search_ball(curr_pose, kdtree):
+    curr_pose = np.reshape(curr_pose, [3, 4])
     T = curr_pose[:3, 3]
     ball = kdtree.search_radius_vector_3d(T, BALL_RADIUS)
     return np.array(ball[1])
 
 
 class FrameDataset(Dataset):
-    def __init__(self, folder, fname, frame2pose, cam_02, cam_03):
-        self.folder, self.frame2pose, self.cam_02, self.cam_03 = folder, frame2pose, cam_02, cam_03
+    def __init__(self, folder, fname, frames, poses, cam_02, cam_03):
+        self.folder, self.cam_02, self.cam_03 = folder, cam_02, cam_03
         min_frame, max_frame = map(int, os.path.splitext(fname)[0].split('_'))
         spath = os.path.join(DATA_2D_SEMANTICS, folder, 'semantic')
         patt = re.compile(r'^(\d{10})$')
-        self.frames = [int(f) for f in os.listdir(spath)
-                       if patt.match(f) and min_frame <= int(f) <= max_frame and int(f) in frame2pose]
+        valid_frames = np.array(list(map(int, filter(patt.match, os.listdir(spath)))))
+        valid_frames = valid_frames[(valid_frames >= min_frame) & (valid_frames <= max_frame)]
+        valid_mask = np.isin(frames, valid_frames)
+        self.frames = frames[valid_mask]
+        self.poses = poses[valid_mask].reshape(-1, 3 * 4)
         fpath = os.path.join(KITTI_360, DATA_3D_SEMANTICS, 'train', folder, 'static', fname)
         ply = read_ply(fpath)
         self.points = np.array([ply['x'], ply['y'], ply['z']]).T
         self.colors = np.array([ply['red'], ply['green'], ply['blue']]).T
         kdtree = get_kdtree(self.points)
-        self.balls = list(tqdm(map(lambda frameId: search_ball(frameId, frame2pose, kdtree), self.frames),
-                               total=len(self.frames), desc='Searching balls'))
+        self.balls = np.apply_along_axis(search_ball, 1, self.poses, kdtree)
 
     def __len__(self):
         return len(self.frames)
@@ -145,11 +147,11 @@ class FrameDataset(Dataset):
 def main():
     for folder in os.listdir(DATA_2D_SEMANTICS):
         statics = os.path.join(KITTI_360, DATA_3D_SEMANTICS, 'train', folder, 'static')
-        frame2pose = get_frame2pose(folder)
+        frames, poses = frames_poses(folder)
         cam_02 = CameraFisheye(KITTI_360, folder, 2)
         cam_03 = CameraFisheye(KITTI_360, folder, 3)
         for file in os.listdir(statics):
-            dataset = FrameDataset(folder, file, frame2pose, cam_02, cam_03)
+            dataset = FrameDataset(folder, file, frames, poses, cam_02, cam_03)
             dataloader = DataLoader(dataset, batch_size=24, num_workers=4, shuffle=False)
             list(tqdm(dataloader, total=len(dataset)))
 
