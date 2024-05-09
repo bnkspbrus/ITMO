@@ -82,18 +82,19 @@ def process_halfball(cam, points, colors, frameId, side0, folder, semantic3d):
         points_local = R1 @ points_local
 
 
-def process_ball(frameId, points, colors, ball, folder, cam_02, cam_03):
+def process_ball(frame, points, colors, folder, cam_02, cam_03):
+    semantic_path = os.path.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{frame:010d}.npy')
+    if os.path.exists(semantic_path):
+        return 0
+    ball = np.load(os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frame:010d}.npy'))
     points = points[ball]
     colors = colors[ball]
-
-    os.makedirs(os.path.join(DATA_3D_SEMANTICS, folder, 'ball'), exist_ok=True)
-    np.save(os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frameId:010d}.npy'), ball)
     semantic3d = np.zeros((points.shape[0], 256), dtype=np.int32)
-    process_halfball(cam_02, points, colors, frameId, 0, folder, semantic3d)
-    process_halfball(cam_03, points, colors, frameId, 3, folder, semantic3d)
+    process_halfball(cam_02, points, colors, frame, 0, folder, semantic3d)
+    process_halfball(cam_03, points, colors, frame, 3, folder, semantic3d)
     semantic3d = np.argmax(semantic3d, axis=1).astype(np.uint8)
     os.makedirs(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic'), exist_ok=True)
-    np.save(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{frameId:010d}.npy'), semantic3d)
+    np.save(semantic_path, semantic3d)
     return 0
 
 
@@ -111,11 +112,17 @@ def draw_semantic(frameId, folder, file):
     open3d.visualization.draw_geometries_with_editing([pcd])
 
 
-def search_ball(curr_pose, kdtree):
+def search_ball(pose, kdtree, folder):
+    frame = int(pose[0])
+    curr_pose = pose[1:]
     curr_pose = np.reshape(curr_pose, [3, 4])
     T = curr_pose[:3, 3]
+    ball_path = os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frame:010d}.npy')
+    if os.path.exists(ball_path):
+        return
     ball = kdtree.search_radius_vector_3d(T, BALL_RADIUS)
-    return {0: np.asarray(ball[1])}
+    os.makedirs(os.path.dirname(ball_path), exist_ok=True)
+    np.save(ball_path, ball[1])
 
 
 class FrameDataset(Dataset):
@@ -134,13 +141,13 @@ class FrameDataset(Dataset):
         self.points = np.array([ply['x'], ply['y'], ply['z']]).T
         self.colors = np.array([ply['red'], ply['green'], ply['blue']]).T
         kdtree = get_kdtree(self.points)
-        self.balls = np.apply_along_axis(search_ball, 1, poses, kdtree)
+        np.apply_along_axis(search_ball, 1, np.column_stack((self.frames, poses)), kdtree, folder)
 
     def __len__(self):
         return len(self.frames)
 
     def __getitem__(self, idx):
-        return process_ball(self.frames[idx], self.points, self.colors, self.balls[idx][0], self.folder, self.cam_02, self.cam_03)
+        return process_ball(self.frames[idx], self.points, self.colors, self.folder, self.cam_02, self.cam_03)
 
 
 def main():
