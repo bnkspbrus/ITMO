@@ -78,7 +78,8 @@ def process_halfball(cam, points, colors, frameId, side0, folder, semantic3d):
         semantic = Image.open(semantic_path)
         semantic = np.array(semantic)
         semantic = semantic[v, u]
-        semantic3d[mask, semantic] += 1
+        mask[mask] = semantic != 0
+        semantic3d[mask, semantic[semantic != 0]] += 1
         points_local = R1 @ points_local
 
 
@@ -98,9 +99,9 @@ def process_ball(frame, points, colors, folder, cam_02, cam_03):
     return 0
 
 
-def draw_semantic(frameId, folder, file):
-    semantic3d = np.load(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{frameId:010d}.npy'))
-    ball = np.load(os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frameId:010d}.npy'))
+def draw_semantic(frame, folder, file):
+    semantic3d = np.load(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{frame:010d}.npy'))
+    ball = np.load(os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frame:010d}.npy'))
     statics = os.path.join(KITTI_360, DATA_3D_SEMANTICS, 'train', folder, 'static')
     ply = read_ply(os.path.join(statics, file))
     points = np.array([ply['x'], ply['y'], ply['z']]).T
@@ -164,5 +165,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-# draw_semantic(250, '2013_05_28_drive_0000_sync', '0000000002_0000000385.ply')
+    draw_semantic(251, '2013_05_28_drive_0000_sync', '0000000002_0000000385.ply')

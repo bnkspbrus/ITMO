@@ -33,7 +33,7 @@ def segment_sequence(folder, file):
         if not os.path.exists(sem_path):
             continue
         semantics = np.load(sem_path)
-        semantic3d[ball, semantics] += 1
+        semantic3d[ball[semantics != 0], semantics[semantics != 0]] += 1
     semantic3d = np.argmax(semantic3d, axis=1).astype(np.uint8)
     np.save(semantics_path, semantic3d)
 
