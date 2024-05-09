@@ -19,7 +19,7 @@ def segment_sequence(folder, file):
         if not os.path.exists(ball_path):
             continue
         ball = np.load(ball_path)
-        sem_path = os.path.join(DATA_3D_SEMANTICS, folder, 'semantics', '%010d.npy' % frame)
+        sem_path = os.path.join(DATA_3D_SEMANTICS, folder, 'semantic', '%010d.npy' % frame)
         if not os.path.exists(sem_path):
             continue
         semantics = np.load(sem_path)
