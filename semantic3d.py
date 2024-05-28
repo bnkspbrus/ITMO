@@ -182,7 +182,7 @@ def main():
         cam_03 = CameraFisheye(KITTI_360, folder, 3)
         for file in os.listdir(statics):
             dataset = FrameDataset(folder, file, frames, poses, cam_02, cam_03)
-            dataloader = DataLoader(dataset, batch_size=24, num_workers=4, shuffle=False)
+            dataloader = DataLoader(dataset, batch_size=1, num_workers=1, shuffle=False)
             list(tqdm(dataloader, total=len(dataloader)))
 
 
