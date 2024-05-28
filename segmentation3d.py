@@ -13,7 +13,7 @@ import re
 
 DATA_2D_SEMANTICS = "data_2d_semantics"
 DATA_3D_SEMANTICS = "data_3d_semantics"
-KITTI_360 = 'KITTI_360'
+KITTI_360 = 'KITTI-360'
 
 id2color = np.zeros((256, 3), dtype=np.uint8)
 for id, label in id2label.items():
@@ -24,7 +24,7 @@ F = 350
 K = np.array([[F, 0, S / 2], [0, F, S / 2], [0, 0, 1]])
 TRN = np.deg2rad(45)
 R1 = np.array([[np.cos(TRN), 0, np.sin(TRN)], [0, 1, 0], [-np.sin(TRN), 0, np.cos(TRN)]]).T
-BALL_RADIUS = 1000
+BALL_RADIUS = 100
 
 
 class CameraPerspectiveV2(CameraPerspective):
@@ -165,4 +165,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-    draw_semantic(251, '2013_05_28_drive_0000_sync', '0000000002_0000000385.ply')
+    # draw_semantic(251, '2013_05_28_drive_0000_sync', '0000000002_0000000385.ply')
