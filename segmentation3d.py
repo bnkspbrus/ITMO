@@ -13,7 +13,8 @@ import re
 
 DATA_2D_SEMANTICS = "data_2d_semantics"
 DATA_3D_SEMANTICS = "data_3d_semantics"
-KITTI_360 = 'KITTI-360'
+DATA_3D_PROJECTION = "data_3d_projection"
+KITTI_360 = 'KITTI_360'
 
 id2color = np.zeros((256, 3), dtype=np.uint8)
 for id, label in id2label.items():
@@ -65,38 +66,56 @@ def z_buffer(u, v, depth):
     return u[mask], v[mask], mask
 
 
-def process_halfball(cam, points, colors, frameId, side0, folder, semantic3d):
-    points_local = world2cam(cam, points, frameId)
-    points_local = R1.T @ points_local
+def project_vertices_halfball(cam, vertices, frameId, side0, folder):
+    points_local = world2cam(cam, vertices, frameId)
+    rotation = R1.T
     for side in range(side0, side0 + 3):
+        points_local = rotation @ points_local
         u, v, depth = cam_00.cam2image(points_local)
         mask = (u >= 0) & (u < S) & (v >= 0) & (v < S) & (depth > 0)
         u, v, depth = u[mask], v[mask], depth[mask]
         u, v, dmask = z_buffer(u, v, depth)
         mask[mask] = dmask
+        os.makedirs(os.path.join(DATA_3D_PROJECTION, folder, f'{frameId:010d}'), exist_ok=True)
+        np.save(os.path.join(DATA_3D_PROJECTION, folder, f'{frameId:010d}', f'u_{side}.npy'), u)
+        np.save(os.path.join(DATA_3D_PROJECTION, folder, f'{frameId:010d}', f'v_{side}.npy'), v)
+        np.save(os.path.join(DATA_3D_PROJECTION, folder, f'{frameId:010d}', f'mask_{side}.npy'), mask)
+        rotation = R1 @ rotation
+
+
+def project_vertices_ball(frame, points, folder, cam_02, cam_03, ball):
+    if os.path.exists(os.path.join(DATA_3D_PROJECTION, folder, f'{frame:010d}')):
+        return
+    points = points[ball]
+    project_vertices_halfball(cam_02, points, frame, 0, folder)
+    project_vertices_halfball(cam_03, points, frame, 3, folder)
+
+
+def segment_semantic_halfball(frameId, side0, folder, semantic3d):
+    for side in range(side0, side0 + 3):
+        u = np.load(os.path.join(DATA_3D_PROJECTION, folder, f'{frameId:010d}', f'u_{side}.npy'))
+        v = np.load(os.path.join(DATA_3D_PROJECTION, folder, f'{frameId:010d}', f'v_{side}.npy'))
+        mask = np.load(os.path.join(DATA_3D_PROJECTION, folder, f'{frameId:010d}', f'mask_{side}.npy'))
         semantic_path = os.path.join(DATA_2D_SEMANTICS, folder, 'semantic', f'{frameId:010d}', f'{side}.png')
         semantic = Image.open(semantic_path)
         semantic = np.array(semantic)
         semantic = semantic[v, u]
         mask[mask] = semantic != 0
         semantic3d[mask, semantic[semantic != 0]] += 1
-        points_local = R1 @ points_local
 
 
-def process_ball(frame, points, colors, folder, cam_02, cam_03):
+def segment_semantic_ball(frame, points, colors, folder, ball):
     semantic_path = os.path.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{frame:010d}.npy')
     if os.path.exists(semantic_path):
-        return 0
-    ball = np.load(os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frame:010d}.npy'))
+        return
     points = points[ball]
     colors = colors[ball]
     semantic3d = np.zeros((points.shape[0], 256), dtype=np.int32)
-    process_halfball(cam_02, points, colors, frame, 0, folder, semantic3d)
-    process_halfball(cam_03, points, colors, frame, 3, folder, semantic3d)
+    segment_semantic_halfball(frame, 0, folder, semantic3d)
+    segment_semantic_halfball(frame, 3, folder, semantic3d)
     semantic3d = np.argmax(semantic3d, axis=1).astype(np.uint8)
     os.makedirs(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic'), exist_ok=True)
     np.save(semantic_path, semantic3d)
-    return 0
 
 
 def draw_semantic(frame, folder, file):
@@ -148,7 +167,11 @@ class FrameDataset(Dataset):
         return len(self.frames)
 
     def __getitem__(self, idx):
-        return process_ball(self.frames[idx], self.points, self.colors, self.folder, self.cam_02, self.cam_03)
+        frame = self.frames[idx]
+        ball = np.load(os.path.join(DATA_3D_SEMANTICS, self.folder, 'ball', f'{frame:010d}.npy'))
+        project_vertices_ball(frame, self.points, self.folder, self.cam_02, self.cam_03, ball)
+        segment_semantic_ball(frame, self.points, self.colors, self.folder, ball)
+        return 0
 
 
 def main():
