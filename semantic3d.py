@@ -13,9 +13,9 @@ import re
 import pickle
 
 DATA_2D_SEMANTICS = "data_2d_semantics"
-DATA_3D_SEMANTICS = "../data_3d_semantics"
+DATA_3D_SEMANTICS = "data_3d_semantics"
 KITTI_DATA_3D_SEMANTICS = "data_3d_semantics"
-DATA_3D_PROJECTION = "../data_3d_projection"
+DATA_3D_PROJECTION = "data_3d_projection"
 KITTI_360 = 'KITTI_360'
 
 id2color = np.zeros((256, 3), dtype=np.uint8)
