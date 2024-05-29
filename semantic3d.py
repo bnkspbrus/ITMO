@@ -10,11 +10,12 @@ import numpy as np
 import open3d
 import pandas as pd
 import re
+import pickle
 
 DATA_2D_SEMANTICS = "data_2d_semantics"
-DATA_3D_SEMANTICS = "data_3d_semantics"
+DATA_3D_SEMANTICS = "../data_3d_semantics"
 KITTI_DATA_3D_SEMANTICS = "data_3d_semantics"
-DATA_3D_PROJECTION = "data_3d_projection"
+DATA_3D_PROJECTION = "../data_3d_projection"
 KITTI_360 = 'KITTI_360'
 
 id2color = np.zeros((256, 3), dtype=np.uint8)
@@ -26,9 +27,6 @@ F = 350
 K = np.array([[F, 0, S / 2], [0, F, S / 2], [0, 0, 1]])
 TRN = np.deg2rad(45)
 R1 = np.array([[np.cos(TRN), 0, np.sin(TRN)], [0, 1, 0], [-np.sin(TRN), 0, np.cos(TRN)]]).T
-
-
-# BALL_RADIUS = 100
 
 
 class CameraPerspectiveV2(CameraPerspective):
@@ -72,6 +70,9 @@ def z_buffer(u, v, depth):
 def project_vertices_halfball(cam, vertices, frameId, side0, folder):
     points_local = world2cam(cam, vertices, frameId)
     rotation = R1.T
+    us = []
+    vs = []
+    masks = []
     for side in range(side0, side0 + 3):
         points_local = rotation @ points_local
         u, v, depth = cam_00.cam2image(points_local)
@@ -80,25 +81,42 @@ def project_vertices_halfball(cam, vertices, frameId, side0, folder):
         # u, v, dmask = z_buffer(u, v, depth)
         # mask[mask] = dmask
         os.makedirs(os.path.join(DATA_3D_PROJECTION, folder, f'{frameId:010d}'), exist_ok=True)
-        np.save(os.path.join(DATA_3D_PROJECTION, folder, f'{frameId:010d}', f'u_{side}.npy'), u)
-        np.save(os.path.join(DATA_3D_PROJECTION, folder, f'{frameId:010d}', f'v_{side}.npy'), v)
-        np.save(os.path.join(DATA_3D_PROJECTION, folder, f'{frameId:010d}', f'mask_{side}.npy'), mask)
+        us.append(u)
+        vs.append(v)
+        masks.append(mask)
         rotation = R1 @ rotation
+    return us, vs, masks
 
 
 def project_vertices_ball(frame, points, folder, cam_02, cam_03, ball):
     if os.path.exists(os.path.join(DATA_3D_PROJECTION, folder, f'{frame:010d}')):
-        return
+        with open(os.path.join(DATA_3D_PROJECTION, folder, f'{frame:010d}', 'us.pkl'), 'rb') as file:
+            us = pickle.load(file)
+        with open(os.path.join(DATA_3D_PROJECTION, folder, f'{frame:010d}', 'vs.pkl'), 'rb') as file:
+            vs = pickle.load(file)
+        with open(os.path.join(DATA_3D_PROJECTION, folder, f'{frame:010d}', 'masks.pkl'), 'rb') as file:
+            masks = pickle.load(file)
+        return us, vs, masks
     points = points[ball]
-    project_vertices_halfball(cam_02, points, frame, 0, folder)
-    project_vertices_halfball(cam_03, points, frame, 3, folder)
+    us0, vs0, masks0 = project_vertices_halfball(cam_02, points, frame, 0, folder)
+    us1, vs1, masks1 = project_vertices_halfball(cam_03, points, frame, 3, folder)
+    us = us0 + us1
+    vs = vs0 + vs1
+    masks = masks0 + masks1
+    with open(os.path.join(DATA_3D_PROJECTION, folder, f'{frame:010d}', 'us.pkl'), 'wb') as file:
+        pickle.dump(us, file)
+    with open(os.path.join(DATA_3D_PROJECTION, folder, f'{frame:010d}', 'vs.pkl'), 'wb') as file:
+        pickle.dump(vs, file)
+    with open(os.path.join(DATA_3D_PROJECTION, folder, f'{frame:010d}', 'masks.pkl'), 'wb') as file:
+        pickle.dump(masks, file)
+    return us, vs, masks
 
 
-def segment_semantic_halfball(frameId, side0, folder, semantic3d):
+def segment_semantic_halfball(frameId, side0, folder, semantic3d, us, vs, masks):
     for side in range(side0, side0 + 3):
-        u = np.load(os.path.join(DATA_3D_PROJECTION, folder, f'{frameId:010d}', f'u_{side}.npy'))
-        v = np.load(os.path.join(DATA_3D_PROJECTION, folder, f'{frameId:010d}', f'v_{side}.npy'))
-        mask = np.load(os.path.join(DATA_3D_PROJECTION, folder, f'{frameId:010d}', f'mask_{side}.npy'))
+        u = us[side]
+        v = vs[side]
+        mask = masks[side]
         semantic_path = os.path.join(DATA_2D_SEMANTICS, folder, 'semantic', f'{frameId:010d}', f'{side}.png')
         semantic = Image.open(semantic_path)
         semantic = np.array(semantic)
@@ -107,15 +125,15 @@ def segment_semantic_halfball(frameId, side0, folder, semantic3d):
         semantic3d[mask, semantic[semantic != 0]] += 1
 
 
-def segment_semantic_ball(frame, points, colors, folder, ball):
+def segment_semantic_ball(frame, points, colors, folder, ball, us, vs, masks):
     semantic_path = os.path.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{frame:010d}.npy')
     if os.path.exists(semantic_path):
         return
     points = points[ball]
     colors = colors[ball]
     semantic3d = np.zeros((points.shape[0], 256), dtype=np.int32)
-    segment_semantic_halfball(frame, 0, folder, semantic3d)
-    segment_semantic_halfball(frame, 3, folder, semantic3d)
+    segment_semantic_halfball(frame, 0, folder, semantic3d, us, vs, masks)
+    segment_semantic_halfball(frame, 3, folder, semantic3d, us, vs, masks)
     semantic3d = np.argmax(semantic3d, axis=1).astype(np.uint8)
     os.makedirs(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic'), exist_ok=True)
     np.save(semantic_path, semantic3d)
@@ -181,8 +199,8 @@ class FrameDataset(Dataset):
         frame = self.frames[idx]
         curr_pose = self.cam2world[frame]
         ball = search_ball(curr_pose, self.points, self.folder, frame, self.radius)
-        project_vertices_ball(frame, self.points, self.folder, self.cam_02, self.cam_03, ball)
-        segment_semantic_ball(frame, self.points, self.colors, self.folder, ball)
+        us, vs, masks = project_vertices_ball(frame, self.points, self.folder, self.cam_02, self.cam_03, ball)
+        segment_semantic_ball(frame, self.points, self.colors, self.folder, ball, us, vs, masks)
         return 0
 
 
