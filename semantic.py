@@ -64,5 +64,5 @@ def main():
 
 
 if __name__ == '__main__':
-    # main()
-    draw_sequence('2013_05_28_drive_0000_sync', '0000000002_0000000385.ply')
+    main()
+    # draw_sequence('2013_05_28_drive_0000_sync', '0000000002_0000000385.ply')
