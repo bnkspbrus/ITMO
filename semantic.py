@@ -18,7 +18,7 @@ def segment_sequence(folder, file):
     min_frame, max_frame = os.path.splitext(file)[0].split('_')
     min_frame, max_frame = int(min_frame), int(max_frame)
     seq = int(folder.split('_')[-2])
-    semantics_path = os.path.join(DATA_SEMANTICS, '%04d_%010d_%010d.npy' % (seq, min_frame, max_frame))
+    semantics_path = os.path.join(DATA_SEMANTICS, 'semantic', '%04d_%010d_%010d.npy' % (seq, min_frame, max_frame))
     if os.path.exists(semantics_path):
         return
     ply_file = os.path.join(KITTI_360, KITTI_DATA_3D_SEMANTICS, 'train', folder, 'static', file)
@@ -64,5 +64,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
-    # draw_sequence('2013_05_28_drive_0000_sync', '0000000002_0000000385.ply')
+    # main()
+    draw_sequence('2013_05_28_drive_0000_sync', '0000000002_0000000385.ply')
