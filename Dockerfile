@@ -86,8 +86,10 @@ RUN conda env list
 
 ENV FORCE_CUDA="1"
 ARG INSTALL_SH="https://raw.githubusercontent.com/bnkspbrus/ITMO/main/install.sh"
-RUN apt-get install -y software-properties-common
+RUN set -x && \
+apt-get update && \
+apt-get clean && \
+apt-get install -y software-properties-common
 RUN add-apt-repository 'deb http://cz.archive.ubuntu.com/ubuntu focal main universe'
 RUN wget "${INSTALL_SH}" -O install.sh -q \
 && /bin/bash install.sh
-
