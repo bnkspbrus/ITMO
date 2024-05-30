@@ -147,11 +147,11 @@ pip install h5py
 pip install faiss-gpu===1.6.5
 
 # Install MinkowskiEngine
-apt install libopenblas-dev
+apt install -y libopenblas-dev
 pip install -U MinkowskiEngine==v0.4.3 --install-option="--blas=openblas" -v --no-deps
 
 # Install torchsparse
-apt-get install libsparsehash-dev
+apt-get install -y libsparsehash-dev
 pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.1.0
 #pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.4.0
 
