@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/cuda:11.2.2-devel-ubuntu20.04
+FROM nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04
 ENV DEBIAN_FRONTEND noninteractive
 RUN useradd -ms /bin/bash --uid 1000 jupyter\
 && apt update\
@@ -10,14 +10,14 @@ ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 ENV PATH /opt/conda/bin:$PATH
 
 # renovate: datasource=custom.anaconda_installer
-ARG INSTALLER_URL_LINUX64="https://repo.anaconda.com/archive/Anaconda3-2024.02-1-Linux-x86_64.sh"
-ARG SHA256SUM_LINUX64="c536ddb7b4ba738bddbd4e581b29308cb332fa12ae3fa2cd66814bd735dff231"
+ARG INSTALLER_URL_LINUX64="https://repo.anaconda.com/archive/Anaconda3-2022.05-Linux-x86_64.sh"
+ARG SHA256SUM_LINUX64="a7c0afe862f6ea19a596801fc138bde0463abcbce1b753e8d5c474b506a2db2d"
 # renovate: datasource=custom.anaconda_installer
-ARG INSTALLER_URL_S390X="https://repo.anaconda.com/archive/Anaconda3-2024.02-1-Linux-s390x.sh"
-ARG SHA256SUM_S390X="3e2e8b17ea9a5caafd448f52e01435998b2e1ce102040a924d5bd6e05a1d735b"
+ARG INSTALLER_URL_S390X="https://repo.anaconda.com/archive/Anaconda3-2022.05-Linux-s390x.sh"
+ARG SHA256SUM_S390X="c14415df69e439acd7458737a84a45c6067376cbec2fccf5e2393f9837760ea7"
 # renovate: datasource=custom.anaconda_installer
-ARG INSTALLER_URL_AARCH64="https://repo.anaconda.com/archive/Anaconda3-2024.02-1-Linux-aarch64.sh"
-ARG SHA256SUM_AARCH64="28c5bed6fba84f418516e41640c7937514aabd55e929a8f66937c737303c7bba"
+ARG INSTALLER_URL_AARCH64="https://repo.anaconda.com/archive/Anaconda3-2022.05-Linux-aarch64.sh"
+ARG SHA256SUM_AARCH64="dc6bb4eab3996e0658f8bc4bbd229c18f55269badd74acc36d9e23143268b795"
 
 # hadolint ignore=DL3008
 RUN set -x && \
@@ -84,7 +84,6 @@ ENV CONDA_PREFIX_1="/opt/conda"
 
 RUN conda env list
 
-ENV FORCE_CUDA="1"
 ARG INSTALL_SH="https://raw.githubusercontent.com/bnkspbrus/ITMO/main/install.sh"
 RUN set -x && \
 apt-get update && \
