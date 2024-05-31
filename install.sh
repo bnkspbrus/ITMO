@@ -159,7 +159,9 @@ PATH=/usr/local/cuda/bin:$PATH CPATH=/usr/local/cuda/include:$CPATH pip install 
 pip install plotly==5.4.0
 pip install "jupyterlab>=3" "ipywidgets>=7.6"
 pip install jupyter-dash
-jupyter labextension install @jupyter-widgets/jupyterlab-manager plotlywidget@4.14.1
+#jupyter labextension install @jupyter-widgets/jupyterlab-manager plotlywidget@4.14.1
+npm i @jupyter-widgets/jupyterlab-manager
+npm i plotlywidget@4.14.1
 echo "NB: In case you want to use our notebooks, make sure the 'deep_view_aggregation' kernel is accessible in jupyterlab"
 echo
 echo
