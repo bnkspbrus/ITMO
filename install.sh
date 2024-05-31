@@ -1,4 +1,4 @@
-#!/bin/bash
+f#!/bin/bash
 
 # Recover the project directory from the position of the install.sh script
 HERE=`dirname $0`
@@ -127,7 +127,7 @@ pip install --no-index torch-sparse -f https://pytorch-geometric.com/whl/torch-$
 pip install --no-index torch-cluster -f https://pytorch-geometric.com/whl/torch-${TORCH}+${cuXXX_PYG}.html
 pip install --no-index torch-spline-conv -f https://pytorch-geometric.com/whl/torch-${TORCH}+${cuXXX_PYG}.html
 pip install torch-geometric==1.6.3
-pip install torch-points-kernels==0.6.10 --no-cache-dir
+FORCE_CUDA=1 pip install torch-points-kernels==0.6.10 --no-cache-dir
 
 # Additional dependencies
 pip install omegaconf
@@ -148,11 +148,11 @@ pip install faiss-gpu===1.6.5
 
 # Install MinkowskiEngine
 apt install -y libopenblas-dev
-pip install -U MinkowskiEngine==v0.4.3 --install-option="--blas=openblas" -v --no-deps
+FORCE_CUDA=1 pip install -U MinkowskiEngine==v0.4.3 --install-option="--blas=openblas" -v --no-deps
 
 # Install torchsparse
 apt-get install -y libsparsehash-dev
-pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.1.0
+FORCE_CUDA=1 pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.1.0
 #pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.4.0
 
 # Install plotly and associated jupyter requirements
