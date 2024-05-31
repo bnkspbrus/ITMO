@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04
+FROM nvcr.io/nvidia/cuda:11.2.0-devel-ubuntu18.04
 ENV DEBIAN_FRONTEND noninteractive
 RUN useradd -ms /bin/bash --uid 1000 jupyter\
 && apt update\
@@ -85,10 +85,5 @@ ENV CONDA_PREFIX_1="/opt/conda"
 RUN conda env list
 
 ARG INSTALL_SH="https://raw.githubusercontent.com/bnkspbrus/ITMO/main/install.sh"
-RUN set -x && \
-apt-get update && \
-apt-get clean && \
-apt-get install -y software-properties-common
-RUN add-apt-repository 'deb http://cz.archive.ubuntu.com/ubuntu focal main universe'
 RUN wget "${INSTALL_SH}" -O install.sh -q \
 && /bin/bash install.sh
