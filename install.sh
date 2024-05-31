@@ -127,7 +127,7 @@ pip install --no-index torch-sparse -f https://pytorch-geometric.com/whl/torch-$
 pip install --no-index torch-cluster -f https://pytorch-geometric.com/whl/torch-${TORCH}+${cuXXX_PYG}.html
 pip install --no-index torch-spline-conv -f https://pytorch-geometric.com/whl/torch-${TORCH}+${cuXXX_PYG}.html
 pip install torch-geometric==1.6.3
-FORCE_CUDA=1 pip install torch-points-kernels==0.6.10 --no-cache-dir
+FORCE_CUDA=1 PATH=/usr/local/cuda/bin:$PATH CPATH=/usr/local/cuda/include:$CPATH pip install torch-points-kernels==0.6.10 --no-cache-dir
 
 # Additional dependencies
 pip install omegaconf
@@ -148,11 +148,11 @@ pip install faiss-gpu===1.6.5
 
 # Install MinkowskiEngine
 apt-get update && apt-get clean && apt install -y libopenblas-dev
-FORCE_CUDA=1 pip install -U MinkowskiEngine==v0.4.3 --install-option="--blas=openblas" -v --no-deps
+PATH=/usr/local/cuda/bin:$PATH CPATH=/usr/local/cuda/include:$CPATH pip install -U MinkowskiEngine==v0.4.3 --install-option="--blas=openblas" -v --no-deps
 
 # Install torchsparse
 apt-get update && apt-get clean && apt-get install -y libsparsehash-dev
-FORCE_CUDA=1 pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.1.0
+PATH=/usr/local/cuda/bin:$PATH CPATH=/usr/local/cuda/include:$CPATH pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.1.0
 #pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.4.0
 
 # Install plotly and associated jupyter requirements
