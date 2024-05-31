@@ -147,7 +147,7 @@ pip install h5py
 pip install faiss-gpu===1.6.5
 
 # Install MinkowskiEngine
-apt-get update && apt-get clean && apt install -y libopenblas-dev
+apt-get update && apt-get clean && apt-get install -y libopenblas-dev
 PATH=/usr/local/cuda/bin:$PATH CPATH=/usr/local/cuda/include:$CPATH pip install -U MinkowskiEngine==v0.4.3 --install-option="--blas=openblas" -v --no-deps
 
 # Install torchsparse
