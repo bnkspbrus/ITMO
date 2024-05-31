@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/cuda:11.2.0-devel-ubuntu18.04
+FROM nvcr.io/nvidia/cuda:11.2.0-cudnn8-devel-ubuntu18.04
 ENV DEBIAN_FRONTEND noninteractive
 RUN useradd -ms /bin/bash --uid 1000 jupyter\
 && apt update\
