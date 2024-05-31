@@ -67,8 +67,9 @@ def z_buffer(u, v, depth):
     return u[mask], v[mask], mask
 
 
-def project_vertices_halfball(cam, vertices, frameId, side0, folder):
-    points_local = world2cam(cam, vertices, frameId)
+def project_vertices_halfball(cam, points, ball, frame, side0, folder):
+    vertices = points[ball]
+    points_local = world2cam(cam, vertices, frame)
     rotation = R1.T
     us = []
     vs = []
@@ -80,15 +81,15 @@ def project_vertices_halfball(cam, vertices, frameId, side0, folder):
         u, v, depth = u[mask], v[mask], depth[mask]
         # u, v, dmask = z_buffer(u, v, depth)
         # mask[mask] = dmask
-        os.makedirs(os.path.join(DATA_3D_PROJECTION, folder, f'{frameId:010d}'), exist_ok=True)
+        os.makedirs(os.path.join(DATA_3D_PROJECTION, folder, f'{frame:010d}'), exist_ok=True)
         us.append(u)
         vs.append(v)
-        masks.append(mask)
+        masks.append(np.asarray(ball)[mask])
         rotation = R1 @ rotation
     return us, vs, masks
 
 
-def project_vertices_ball(frame, points, folder, cam_02, cam_03, ball):
+def project_vertices_ball(frame, points, folder, cam_02, cam_03, ball0, ball1):
     if os.path.exists(os.path.join(DATA_3D_PROJECTION, folder, f'{frame:010d}')):
         with open(os.path.join(DATA_3D_PROJECTION, folder, f'{frame:010d}', 'us.pkl'), 'rb') as file:
             us = pickle.load(file)
@@ -97,9 +98,8 @@ def project_vertices_ball(frame, points, folder, cam_02, cam_03, ball):
         with open(os.path.join(DATA_3D_PROJECTION, folder, f'{frame:010d}', 'masks.pkl'), 'rb') as file:
             masks = pickle.load(file)
         return us, vs, masks
-    points = points[ball]
-    us0, vs0, masks0 = project_vertices_halfball(cam_02, points, frame, 0, folder)
-    us1, vs1, masks1 = project_vertices_halfball(cam_03, points, frame, 3, folder)
+    us0, vs0, masks0 = project_vertices_halfball(cam_02, points, ball0, frame, 0, folder)
+    us1, vs1, masks1 = project_vertices_halfball(cam_03, points, ball1, frame, 3, folder)
     us = us0 + us1
     vs = vs0 + vs1
     masks = masks0 + masks1
@@ -112,61 +112,87 @@ def project_vertices_ball(frame, points, folder, cam_02, cam_03, ball):
     return us, vs, masks
 
 
-def segment_semantic_halfball(frameId, side0, folder, semantic3d, us, vs, masks):
+def segment_semantic_halfball(frame, side0, folder, semantic3d, us, vs, masks):
     for side in range(side0, side0 + 3):
         u = us[side]
         v = vs[side]
         mask = masks[side]
-        semantic_path = os.path.join(DATA_2D_SEMANTICS, folder, 'semantic', f'{frameId:010d}', f'{side}.png')
+        semantic_path = os.path.join(DATA_2D_SEMANTICS, folder, 'semantic', f'{frame:010d}', f'{side}.png')
         semantic = Image.open(semantic_path)
         semantic = np.array(semantic)
         semantic = semantic[v, u]
-        mask[mask] = semantic != 0
+        mask = mask[semantic != 0]
         semantic3d[mask, semantic[semantic != 0]] += 1
 
 
-def segment_semantic_ball(frame, points, colors, folder, ball, us, vs, masks):
+def segment_semantic_ball(frame, points, colors, folder, ball0, ball1, us, vs, masks):
     semantic_path = os.path.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{frame:010d}.npy')
     if os.path.exists(semantic_path):
         return
-    points = points[ball]
-    colors = colors[ball]
     semantic3d = np.zeros((points.shape[0], 256), dtype=np.int32)
     segment_semantic_halfball(frame, 0, folder, semantic3d, us, vs, masks)
     segment_semantic_halfball(frame, 3, folder, semantic3d, us, vs, masks)
+    ball = np.union1d(ball0, ball1)
+    semantic3d = semantic3d[ball]
     semantic3d = np.argmax(semantic3d, axis=1).astype(np.uint8)
-    os.makedirs(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic'), exist_ok=True)
+    os.makedirs(os.path.dirname(semantic_path), exist_ok=True)
     np.save(semantic_path, semantic3d)
 
 
 def draw_semantic(frame, folder, file):
+    cam_02 = CameraFisheye(KITTI_360, seq=folder, cam_id=2)
+    cam_03 = CameraFisheye(KITTI_360, seq=folder, cam_id=3)
     semantic3d = np.load(os.path.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{frame:010d}.npy'))
-    ball = np.load(os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frame:010d}.npy'))
+    ball0 = np.load(os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frame:010d}_0.npy'))
+    ball1 = np.load(os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frame:010d}_1.npy'))
+    ball = np.union1d(ball0, ball1)
     statics = os.path.join(KITTI_360, KITTI_DATA_3D_SEMANTICS, 'train', folder, 'static')
     ply = read_ply(os.path.join(statics, file))
     points = np.array([ply['x'], ply['y'], ply['z']]).T
+    colors = np.array([ply['red'], ply['green'], ply['blue']]).T
     points = points[ball]
+    colors = colors[ball]
     colors = id2color[semantic3d]
     pcd = open3d.geometry.PointCloud()
     pcd.points = open3d.utility.Vector3dVector(points)
     pcd.colors = open3d.utility.Vector3dVector(colors / 255)
+    # point where the camera is
+    curr_pose0 = cam_02.cam2world[frame]
+    T0 = curr_pose0[:3, 3]
+    # add point to the point cloud
+    pcd.points.append(T0)
+    pcd.colors.append([1, 0, 0])
+    curr_pose1 = cam_03.cam2world[frame]
+    T1 = curr_pose1[:3, 3]
+    pcd.points.append(T1)
+    pcd.colors.append([0, 1, 0])
     open3d.visualization.draw_geometries_with_editing([pcd])
 
 
-def search_ball(curr_pose, points, folder, frame, radius):
-    ball_path = os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frame:010d}.npy')
-    if os.path.exists(ball_path):
-        return np.load(ball_path)
+def search_balls(curr_pose0, curr_pose1, points, folder, frame, radius):
+    ball0_path = os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frame:010d}_0.npy')
+    ball1_path = os.path.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frame:010d}_1.npy')
+    ball0, ball1 = None, None
+    if os.path.exists(ball0_path):
+        ball0 = np.load(ball0_path)
+    if os.path.exists(ball1_path):
+        ball1 = np.load(ball1_path)
     # curr_pose = np.reshape(curr_pose, [3, 4])
-    T = curr_pose[:3, 3]
+    T0 = curr_pose0[:3, 3]
+    T1 = curr_pose1[:3, 3]
     pcd = open3d.geometry.PointCloud()
     pcd.points = open3d.utility.Vector3dVector(points)
     # search ball with hidden_point_removal
-    ball = pcd.hidden_point_removal(T, radius)[1]
+    if ball0 is None:
+        ball0 = pcd.hidden_point_removal(T0, radius)[1]
+        os.makedirs(os.path.dirname(ball0_path), exist_ok=True)
+        np.save(ball0_path, ball0)
+    if ball1 is None:
+        ball1 = pcd.hidden_point_removal(T1, radius)[1]
+        os.makedirs(os.path.dirname(ball1_path), exist_ok=True)
+        np.save(ball1_path, ball1)
     # ball = kdtree.search_radius_vector_3d(T, BALL_RADIUS)
-    os.makedirs(os.path.dirname(ball_path), exist_ok=True)
-    np.save(ball_path, ball)
-    return ball
+    return ball0, ball1
 
 
 class FrameDataset(Dataset):
@@ -190,17 +216,20 @@ class FrameDataset(Dataset):
             np.asarray(pcd.get_max_bound()) - np.asarray(pcd.get_min_bound()))
         self.radius = diameter * 1000
         cam_02 = CameraFisheye(KITTI_360, seq=folder, cam_id=2)
-        self.cam2world = cam_02.cam2world
+        cam_03 = CameraFisheye(KITTI_360, seq=folder, cam_id=3)
+        self.cam2world0 = cam_02.cam2world
+        self.cam2world1 = cam_03.cam2world
 
     def __len__(self):
         return len(self.frames)
 
     def __getitem__(self, idx):
         frame = self.frames[idx]
-        curr_pose = self.cam2world[frame]
-        ball = search_ball(curr_pose, self.points, self.folder, frame, self.radius)
-        us, vs, masks = project_vertices_ball(frame, self.points, self.folder, self.cam_02, self.cam_03, ball)
-        segment_semantic_ball(frame, self.points, self.colors, self.folder, ball, us, vs, masks)
+        curr_pose0 = self.cam2world0[frame]
+        curr_pose1 = self.cam2world1[frame]
+        ball0, ball1 = search_balls(curr_pose0, curr_pose1, self.points, self.folder, frame, self.radius)
+        us, vs, masks = project_vertices_ball(frame, self.points, self.folder, self.cam_02, self.cam_03, ball0, ball1)
+        segment_semantic_ball(frame, self.points, self.colors, self.folder, ball0, ball1, us, vs, masks)
         return 0
 
 

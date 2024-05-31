@@ -18,7 +18,7 @@ def segment_sequence(folder, file):
     min_frame, max_frame = os.path.splitext(file)[0].split('_')
     min_frame, max_frame = int(min_frame), int(max_frame)
     seq = int(folder.split('_')[-2])
-    semantics_path = os.path.join(DATA_SEMANTICS, 'semantic', '%04d_%010d_%010d.npy' % (seq, min_frame, max_frame))
+    semantics_path = os.path.join(DATA_SEMANTICS, folder, 'semantic', '%04d_%010d_%010d.npy' % (seq, min_frame, max_frame))
     if os.path.exists(semantics_path):
         return
     ply_file = os.path.join(KITTI_360, KITTI_DATA_3D_SEMANTICS, 'train', folder, 'static', file)
@@ -36,6 +36,7 @@ def segment_sequence(folder, file):
         semantics = np.load(sem_path)
         semantic3d[ball[semantics != 0], semantics[semantics != 0]] += 1
     semantic3d = np.argmax(semantic3d, axis=1).astype(np.uint8)
+    os.makedirs(os.path.dirname(semantics_path), exist_ok=True)
     np.save(semantics_path, semantic3d)
 
 
@@ -46,7 +47,7 @@ def draw_sequence(folder, file):
     min_frame, max_frame = os.path.splitext(file)[0].split('_')
     min_frame, max_frame = int(min_frame), int(max_frame)
     seq = int(folder.split('_')[-2])
-    semantics_path = os.path.join(DATA_SEMANTICS, '%04d_%010d_%010d.npy' % (seq, min_frame, max_frame))
+    semantics_path = os.path.join(DATA_SEMANTICS, folder, 'semantic', '%04d_%010d_%010d.npy' % (seq, min_frame, max_frame))
     semantic3d = np.load(semantics_path)
     colors = labelId2color[semantic3d]
     pcd = open3d.geometry.PointCloud()
