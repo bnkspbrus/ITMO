@@ -1,4 +1,4 @@
-f#!/bin/bash
+#!/bin/bash
 
 # Recover the project directory from the position of the install.sh script
 HERE=`dirname $0`
