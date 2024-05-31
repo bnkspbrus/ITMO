@@ -68,9 +68,14 @@ RUN set -x && \
     /opt/conda/bin/conda clean -afy
 
 ARG ENV_YAML_URL="https://raw.githubusercontent.com/bnkspbrus/ITMO/main/deep_view_aggregation.yml"
-RUN wget "${ENV_YAML_URL}" -O deep_view_aggregation.yml -q && \
-     conda env create -f deep_view_aggregation.yml
+RUN wget "${ENV_YAML_URL}" -O deep_view_aggregation.yml
 
+ENV CUDA_HOME /usr/local/cuda
+ARG INSTALL_SH="https://raw.githubusercontent.com/bnkspbrus/ITMO/main/install.sh"
+RUN wget "${INSTALL_SH}" -O install.sh -q \
+&& /bin/bash install.sh
+
+RUN conda env list
 ENV PATH="/opt/conda/envs/deep_view_aggregation/bin:$PATH"
 ENV CONDA_PREFIX="/opt/conda/envs/deep_view_aggregation"
 ENV CONDA_SHLVL="2"
@@ -81,10 +86,3 @@ ENV _CE_M=""
 ENV _CE_CONDA=""
 ENV CONDA_PYTHON_EXE="/opt/conda/bin/python"
 ENV CONDA_PREFIX_1="/opt/conda"
-
-RUN conda env list
-ENV PATH /usr/local/cuda/bin:$PATH
-ENV CPATH /usr/local/cuda/include:$CPATH
-ARG INSTALL_SH="https://raw.githubusercontent.com/bnkspbrus/ITMO/main/install.sh"
-RUN wget "${INSTALL_SH}" -O install.sh -q \
-&& /bin/bash install.sh
