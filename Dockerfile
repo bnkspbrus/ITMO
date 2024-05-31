@@ -83,7 +83,8 @@ ENV CONDA_PYTHON_EXE="/opt/conda/bin/python"
 ENV CONDA_PREFIX_1="/opt/conda"
 
 RUN conda env list
-
+ENV PATH /usr/local/cuda/bin:$PATH
+ENV CPATH /usr/local/cuda/include:$CPATH
 ARG INSTALL_SH="https://raw.githubusercontent.com/bnkspbrus/ITMO/main/install.sh"
 RUN wget "${INSTALL_SH}" -O install.sh -q \
 && /bin/bash install.sh
