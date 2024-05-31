@@ -109,7 +109,7 @@ echo "________________ Installation _______________"
 echo
 
 # Create deep_view_aggregation environment from yml
-#conda env create -f ${YML_FILE}
+conda env create -f ${YML_FILE}
 
 # Activate the env
 source ${CONDA_DIR}/etc/profile.d/conda.sh  
