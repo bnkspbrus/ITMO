@@ -118,7 +118,7 @@ conda activate ${PROJECT_NAME}
 echo "conda_prefix=$CONDA_PREFIX"
 # Dependencies not installed from the .yml
 # See https://pytorch.org/get-started/previous-versions/ if wheel issues
-conda install pytorch==1.7.1 torchvision==0.8.2 torchaudio==0.7.2 -c pytorch
+conda install pytorch==1.7.1 torchvision==0.8.2 -c pytorch
 pip install torchnet
 
 # Install torch-geometric and dependencies
