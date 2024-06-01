@@ -2,7 +2,12 @@ name: deep_view_aggregation
 channels:
   - conda-forge
   - defaults
+  - anaconda
+  - pytorch
 dependencies:
+  - openblas-devel
+  - pytorch==1.7.1
+  - torchvision==0.8.2
   - _libgcc_mutex=0.1=main
   - argon2-cffi=20.1.0=py37h8f50634_1
   - async_generator=1.10=py_0
