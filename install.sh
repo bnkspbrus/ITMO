@@ -128,7 +128,7 @@ pip install --no-index torch-sparse -f https://pytorch-geometric.com/whl/torch-$
 pip install --no-index torch-cluster -f https://pytorch-geometric.com/whl/torch-${TORCH}+${cuXXX_PYG}.html
 pip install --no-index torch-spline-conv -f https://pytorch-geometric.com/whl/torch-${TORCH}+${cuXXX_PYG}.html
 pip install torch-geometric==1.6.3
-FORCE_CUDA=1 PATH=/usr/local/cuda/bin:$PATH CPATH=/usr/local/cuda/include:$CPATH pip install torch-points-kernels==0.6.10 --no-cache-dir
+FORCE_CUDA=1 PATH=$CUDA_HOME/bin:$PATH CPATH=$CUDA_HOME/include:$CPATH pip install torch-points-kernels==0.6.10 --no-cache-dir
 
 # Additional dependencies
 pip install omegaconf
