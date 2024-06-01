@@ -1,9 +1,11 @@
 name: deep_view_aggregation
 channels:
-  - pytorch
   - conda-forge
   - defaults
+  - pytorch
+  - anaconda
 dependencies:
+  - openblas-devel
   - pytorch==1.7.1
   - torchvision==0.8.2
   - cudatoolkit=10.2
