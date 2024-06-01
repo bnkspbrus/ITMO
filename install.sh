@@ -149,11 +149,11 @@ pip install faiss-gpu===1.6.5
 
 # Install MinkowskiEngine
 apt-get update && apt-get clean && apt-get install -y libopenblas-dev
-PATH=/usr/local/cuda/bin:$PATH CPATH=/usr/local/cuda/include:$CPATH pip install -U MinkowskiEngine==v0.4.3 -v --no-deps --install-option="--blas=openblas" --install-option="--force_cuda"
+pip install -U MinkowskiEngine==v0.4.3 -v --no-deps --install-option="--blas=openblas" --install-option="--force_cuda"
 
 # Install torchsparse
 apt-get update && apt-get clean && apt-get install -y libsparsehash-dev
-PATH=/usr/local/cuda/bin:$PATH CPATH=/usr/local/cuda/include:$CPATH pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.1.0
+pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.1.0
 #pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.4.0
 
 # Install plotly and associated jupyter requirements
