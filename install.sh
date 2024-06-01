@@ -149,7 +149,7 @@ pip install faiss-gpu===1.6.5
 
 # Install MinkowskiEngine
 apt-get update && apt-get clean && apt-get install -y libopenblas-dev
-PATH=/usr/local/cuda/bin:$PATH CPATH=/usr/local/cuda/include:$CPATH pip install -U MinkowskiEngine==v0.4.3 --install-option="--blas=openblas" --install-option="--force_cuda" --install-option="--blas_include_dirs=${CONDA_PREFIX}/include" -v --no-deps
+PATH=/usr/local/cuda/bin:$PATH CPATH=/usr/local/cuda/include:$CPATH pip install -U MinkowskiEngine==v0.4.3 -v --no-deps --install-option="--blas_include_dirs=${CONDA_PREFIX}/include" --install-option="--blas=openblas" --install-option="--force_cuda"
 
 # Install torchsparse
 apt-get update && apt-get clean && apt-get install -y libsparsehash-dev
