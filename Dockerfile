@@ -6,6 +6,10 @@ RUN useradd -ms /bin/bash --uid 1000 jupyter\
 && ln -s /usr/bin/python3.8 /usr/local/bin/python3\
 && curl https://bootstrap.pypa.io/get-pip.py | python3
 
+RUN apt-get update \
+&& apt-get install sudo \
+&& usermod -aG sudo jupyter
+
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 ENV PATH /opt/conda/bin:$PATH
 
