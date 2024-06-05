@@ -117,7 +117,7 @@ conda activate ${PROJECT_NAME}
 
 # Dependencies not installed from the .yml
 # See https://pytorch.org/get-started/previous-versions/ if wheel issues
-conda install pytorch==1.7.1 torchvision==0.8.2 cudatoolkit=10.2 -c pytorch -c nvidia
+pip install torch==${TORCH} torchvision==0.8.2 --no-cache-dir --index-url https://download.pytorch.org/whl/cu102
 pip install torchnet
 
 # Install torch-geometric and dependencies
