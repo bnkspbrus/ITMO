@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04
+FROM nvcr.io/nvidia/cuda:10.1-devel-ubuntu18.04
 ENV DEBIAN_FRONTEND noninteractive
 RUN useradd -ms /bin/bash --uid 1000 jupyter\
 && apt update\
@@ -9,6 +9,7 @@ RUN useradd -ms /bin/bash --uid 1000 jupyter\
 RUN apt-get update \
 && apt-get install sudo \
 && usermod -aG sudo jupyter
+RUN echo "jupyter:password" | chpasswd
 
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 ENV PATH /opt/conda/bin:$PATH
@@ -74,7 +75,7 @@ RUN set -x && \
 ARG ENV_YAML_URL="https://raw.githubusercontent.com/bnkspbrus/ITMO/main/deep_view_aggregation.yml"
 RUN wget "${ENV_YAML_URL}" -O deep_view_aggregation.yml
 
-ENV CUDA_HOME /usr/local/cuda-10.2
+ENV CUDA_HOME /usr/local/cuda-10.1
 ARG INSTALL_SH="https://raw.githubusercontent.com/bnkspbrus/ITMO/main/install.sh"
 RUN wget "${INSTALL_SH}" -O install.sh -q \
 && /bin/bash install.sh
