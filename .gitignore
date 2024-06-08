@@ -1,0 +1,7 @@
+.*
+kitti360scripts
+venv*
+KITTI-360
+*.png
+!.gitignore
+data_?d_*
