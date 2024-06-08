@@ -1,9 +1,10 @@
 import cv2
 import numpy as np
 import os
+import os.path as osp
 import tqdm
 from kitti360scripts.helpers.project import CameraFisheye, CameraPerspective
-from multiprocessing import Pool
+from torch.utils.data import Dataset, DataLoader
 
 
 class CameraFisheyeV2(CameraFisheye):
@@ -79,9 +80,8 @@ cam2 = CameraFisheyeV2(KITTI_360, cam_id=2)
 cam3 = CameraFisheyeV2(KITTI_360, cam_id=3)
 
 
-def process_image(args):
-    image_name, seq, cam_id = args
-    image_path = os.path.join(KITTI_360, DATA_2D_RAW, seq, f'image_0{cam_id}', 'data_rgb', image_name)
+def process_image(seq, cam_id, image_name):
+    image_path = osp.join(KITTI_360, DATA_2D_RAW, seq, f'image_0{cam_id}', 'data_rgb', image_name)
     image = cv2.imread(image_path)
     if cam_id == 0:
         equi = image2equirect(image, cam0)
@@ -93,22 +93,36 @@ def process_image(args):
         equi = image2equirect(image, cam3)
     else:
         raise ValueError('Invalid cam_id')
-    out_path = os.path.join(DATA_2D_EQUIRECT, seq, f'image_0{cam_id}', image_name)
+    out_path = osp.join(DATA_2D_EQUIRECT, seq, f'image_0{cam_id}', image_name)
     cv2.imwrite(out_path, equi)
+    return equi
 
 
-def main():
-    for folder in os.listdir(os.path.join(KITTI_360, DATA_2D_RAW)):
-        for cam_id in (2, 3):
-            images = os.path.join(KITTI_360, DATA_2D_RAW, folder, f'image_0{cam_id}', 'data_rgb')
-            if not os.path.isdir(images):
-                continue
-            images = os.listdir(images)
-            os.makedirs(os.path.join(DATA_2D_EQUIRECT, folder, f'image_0{cam_id}'), exist_ok=True)
-            with Pool(4) as p:
-                list(tqdm.tqdm(p.imap_unordered(process_image, ((image, folder, cam_id) for image in images)),
-                               total=len(images)))
+class ImageDataset(Dataset):
+    def __init__(self, sequence, cam_id, image_lower_bound, image_upper_bound):
+        self.sequence = sequence
+        self.cam_id = cam_id
+        self.images = os.listdir(osp.join(KITTI_360, DATA_2D_RAW, sequence, f'image_0{cam_id}', 'data_rgb'))
+        self.images = list(
+            filter(lambda x: image_lower_bound <= int(osp.splitext(x)[0]) <= image_upper_bound, self.images))
+        # filter processed images
+        self.images = list(
+            filter(lambda x: not osp.exists(osp.join(DATA_2D_EQUIRECT, sequence, f'image_0{cam_id}', x)), self.images))
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        # process image
+        return process_image(self.sequence, self.cam_id, self.images[idx])
+
+
+def process_sequence(sequence, image_lower_bound, image_upper_bound):
+    for cam_id in (2, 3):
+        dataset = ImageDataset(sequence, cam_id, image_lower_bound, image_upper_bound)
+        dataloader = DataLoader(dataset, batch_size=4, num_workers=4, shuffle=False)
+        list(tqdm.tqdm(dataloader, total=len(dataset)))
 
 
 if __name__ == '__main__':
-    main()
+    process_sequence('2013_05_28_drive_0000_sync', 2, 385)
