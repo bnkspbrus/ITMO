@@ -65,7 +65,6 @@ class SidesDataset(Dataset):
             cube = cubes[ii % 2]
             side = cube[700:1400, 1400 * (j // 3) + 700 * (ii // 2):1400 * (j // 3) + 700 * (ii // 2 + 1)]
             sides.append(side)
-            Image.fromarray(side).save(f'test{j}.png')
 
         return np.array(sides), int(file.split('.')[0])
 
