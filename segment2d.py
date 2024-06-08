@@ -2,7 +2,8 @@ import torch
 import py360convert
 import numpy as np
 import os
-import tqdm
+from tqdm import tqdm
+import os.path as osp
 from PIL import Image
 from transformers import AutoImageProcessor, Mask2FormerForUniversalSegmentation
 from kitti360scripts.helpers.labels import trainId2label
@@ -37,7 +38,7 @@ model = (Mask2FormerForUniversalSegmentation
 class SidesDataset(Dataset):
     def __init__(self, folder):
         self.folder = folder
-        self.files = os.listdir(os.path.join(DATA_2D_EQUIRECT, folder, 'image_02'))
+        self.files = os.listdir(osp.join(DATA_2D_EQUIRECT, folder, 'image_02'))
         self.files = list(filter(lambda x: x.endswith('.png'), self.files))
 
     def __len__(self):
@@ -45,9 +46,9 @@ class SidesDataset(Dataset):
 
     def __getitem__(self, idx):
         file = self.files[idx]
-        image_02 = Image.open(os.path.join(DATA_2D_EQUIRECT, self.folder, 'image_02', file))
-        image_03_path = os.path.join(DATA_2D_EQUIRECT, self.folder, 'image_03', file)
-        if not os.path.exists(image_03_path):
+        image_02 = Image.open(osp.join(DATA_2D_EQUIRECT, self.folder, 'image_02', file))
+        image_03_path = osp.join(DATA_2D_EQUIRECT, self.folder, 'image_03', file)
+        if not osp.exists(image_03_path):
             return None
         image_03 = Image.open(image_03_path)
         image_02 = np.roll(np.array(image_02), -350, axis=1)
@@ -72,8 +73,8 @@ class SidesDataset(Dataset):
 def process_result(i, j, result, folder):
     instances = result["segmentation"]
     instances = instances.cpu().numpy()
-    instances_path = os.path.join(DATA_2D_SEMANTICS, folder, 'instance', f'{i:010d}', f'{j}.png')
-    os.makedirs(os.path.dirname(instances_path), exist_ok=True)
+    instances_path = osp.join(DATA_2D_SEMANTICS, folder, 'instance', f'{i:010d}', f'{j}.png')
+    os.makedirs(osp.dirname(instances_path), exist_ok=True)
     Image.fromarray(instances).save(instances_path)
 
     segments_info = result["segments_info"]
@@ -82,13 +83,13 @@ def process_result(i, j, result, folder):
         id2labelId[segment_info["id"]] = segment_info["label_id"]
     label_ids = id2labelId[instances]
     semantics = trainId2labelId[label_ids]
-    semantics_path = os.path.join(DATA_2D_SEMANTICS, folder, 'semantic', f'{i:010d}', f'{j}.png')
-    os.makedirs(os.path.dirname(semantics_path), exist_ok=True)
+    semantics_path = osp.join(DATA_2D_SEMANTICS, folder, 'semantic', f'{i:010d}', f'{j}.png')
+    os.makedirs(osp.dirname(semantics_path), exist_ok=True)
     Image.fromarray(semantics).save(semantics_path)
 
     semantics_rgb = trainId2color[label_ids]
-    semantics_rgb_path = os.path.join(DATA_2D_SEMANTICS, folder, 'semantic_rgb', f'{i:010d}', f'{j}.png')
-    os.makedirs(os.path.dirname(semantics_rgb_path), exist_ok=True)
+    semantics_rgb_path = osp.join(DATA_2D_SEMANTICS, folder, 'semantic_rgb', f'{i:010d}', f'{j}.png')
+    os.makedirs(osp.dirname(semantics_rgb_path), exist_ok=True)
     Image.fromarray(semantics_rgb).save(semantics_rgb_path)
 
 
@@ -97,7 +98,7 @@ def main():
         dataset = SidesDataset(folder)
         loader = DataLoader(dataset, batch_size=4, num_workers=4, shuffle=False)
 
-        for sides, frame in tqdm.tqdm(loader):
+        for sides, frame in tqdm(loader):
             if sides is None:
                 continue
             images = list(sides.reshape(-1, 700, 700, 3))
