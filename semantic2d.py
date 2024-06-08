@@ -6,6 +6,7 @@ from tqdm import tqdm
 import os.path as osp
 from PIL import Image
 from transformers import AutoImageProcessor, Mask2FormerForUniversalSegmentation
+from transformers import OneFormerProcessor, OneFormerForUniversalSegmentation
 from kitti360scripts.helpers.labels import trainId2label
 from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
@@ -29,10 +30,13 @@ device = (
 DATA_2D_EQUIRECT = "data_2d_equirect"
 DATA_2D_SEMANTICS = "data_2d_semantics"
 
-processor = AutoImageProcessor.from_pretrained("facebook/mask2former-swin-large-cityscapes-panoptic")
-model = (Mask2FormerForUniversalSegmentation
-         .from_pretrained("facebook/mask2former-swin-large-cityscapes-panoptic")
-         .to(device))
+m2f_processor = AutoImageProcessor.from_pretrained("facebook/mask2former-swin-large-cityscapes-panoptic")
+m2f_model = (Mask2FormerForUniversalSegmentation
+             .from_pretrained("facebook/mask2former-swin-large-cityscapes-panoptic")
+             .to(device))
+
+of_processor = OneFormerProcessor.from_pretrained("shi-labs/oneformer_cityscapes_swin_large")
+of_model = OneFormerForUniversalSegmentation.from_pretrained("shi-labs/oneformer_cityscapes_swin_large").to(device)
 
 
 class SidesDataset(Dataset):
@@ -99,15 +103,25 @@ def process_result(i, j, result, sequence):
     Image.fromarray(semantics_rgb).save(semantics_rgb_path)
 
 
-def process_sequence(sequence, image_lower_bound, image_upper_bound):
+def process_sequence(sequence, image_lower_bound, image_upper_bound, model_name='mask2former'):
     dataset = SidesDataset(sequence, image_lower_bound, image_upper_bound)
     loader = DataLoader(dataset, batch_size=4, num_workers=4, shuffle=False)
+    if model_name == 'mask2former':
+        model = m2f_model
+        processor = m2f_processor
+        pre_process = lambda images: processor(images=images, return_tensors="pt")
+    elif model_name == 'oneformer':
+        model = of_model
+        processor = of_processor
+        pre_process = lambda images: processor(images=images, task_inputs=["panoptic"], return_tensors="pt")
+    else:
+        raise ValueError('Invalid model name')
 
     for sides, frame in tqdm(loader):
         if sides is None:
             continue
         images = list(sides.reshape(-1, 700, 700, 3))
-        inputs = processor(images=images, return_tensors="pt").to(device)
+        inputs = pre_process(images).to(device)
 
         with torch.no_grad():
             outputs = model(**inputs)
