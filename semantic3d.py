@@ -140,14 +140,14 @@ def segment_semantic_ball(frame, points, colors, folder, ball0, ball1, us, vs, m
     np.save(semantic_path, semantic3d)
 
 
-def draw_semantic(frame, folder, split, file):
+def draw_semantic(frame, folder, file):
     cam_02 = CameraFisheye(KITTI_360, seq=folder, cam_id=2)
     cam_03 = CameraFisheye(KITTI_360, seq=folder, cam_id=3)
     semantic3d = np.load(osp.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{frame:010d}.npy'))
     ball0 = np.load(osp.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frame:010d}_0.npy'))
     ball1 = np.load(osp.join(DATA_3D_SEMANTICS, folder, 'ball', f'{frame:010d}_1.npy'))
     ball = np.union1d(ball0, ball1)
-    statics = osp.join(KITTI_360, KITTI_DATA_3D_SEMANTICS, split, folder, 'static')
+    statics = osp.join(KITTI_360, KITTI_DATA_3D_SEMANTICS, folder, 'static')
     ply = read_ply(osp.join(statics, file))
     points = np.array([ply['x'], ply['y'], ply['z']]).T
     colors = np.array([ply['red'], ply['green'], ply['blue']]).T
@@ -197,7 +197,7 @@ def search_balls(curr_pose0, curr_pose1, points, folder, frame, radius):
 
 
 class FrameDataset(Dataset):
-    def __init__(self, folder, split, fname, cam_02, cam_03):
+    def __init__(self, folder, fname, cam_02, cam_03):
         self.folder, self.cam_02, self.cam_03 = folder, cam_02, cam_03
         min_frame, max_frame = map(int, osp.splitext(fname)[0].split('_'))
         spath = osp.join(DATA_2D_SEMANTICS, folder, 'semantic')
@@ -218,7 +218,7 @@ class FrameDataset(Dataset):
         self.frames = list(map(int, self.frames))
         self.frames = list(filter(lambda x: x in self.cam2world0, self.frames))
         self.frames = list(filter(lambda x: x in self.cam2world1, self.frames))
-        fpath = osp.join(KITTI_360, KITTI_DATA_3D_SEMANTICS, split, folder, 'static', fname)
+        fpath = osp.join(KITTI_360, KITTI_DATA_3D_SEMANTICS, folder, 'static', fname)
         ply = read_ply(fpath)
         self.points = np.array([ply['x'], ply['y'], ply['z']]).T
         self.colors = np.array([ply['red'], ply['green'], ply['blue']]).T
@@ -241,16 +241,16 @@ class FrameDataset(Dataset):
         return 0
 
 
-def process_sequence(sequence, image_lower_bound, image_upper_bound, split='val'):
+def process_sequence(sequence, image_lower_bound, image_upper_bound):
     # frames, poses = frames_poses(sequence)
     cam_02 = CameraFisheye(KITTI_360, sequence, 2)
     cam_03 = CameraFisheye(KITTI_360, sequence, 3)
     file = f'{image_lower_bound:010d}_{image_upper_bound:010d}.ply'
-    dataset = FrameDataset(sequence, split, file, cam_02, cam_03)
+    dataset = FrameDataset(sequence, file, cam_02, cam_03)
     dataloader = DataLoader(dataset, batch_size=4, num_workers=4, shuffle=False)
     list(tqdm(dataloader, total=len(dataloader)))
 
 
 if __name__ == '__main__':
     process_sequence('2013_05_28_drive_0000_sync', 2, 385)
-    # draw_semantic(251, '2013_05_28_drive_0000_sync', 'train', '0000000002_0000000385.ply')
+    # draw_semantic(251, '2013_05_28_drive_0000_sync', '0000000002_0000000385.ply')

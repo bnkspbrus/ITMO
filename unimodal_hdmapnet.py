@@ -1,6 +1,6 @@
 from kitti360_config import WINDOWS, SEQUENCES
 from fisheye2equirect import process_sequence as process_fisheye_sequence
-from semantic2d import process_sequence as process_panoptic_sequence
+from panoptic2d import process_sequence as process_panoptic_sequence
 from semantic3d import process_sequence as process_3d_semantic_sequence
 from semantic_hdmap import process_sequence as process_hdmap_sequence
 

@@ -25,15 +25,15 @@ def load_ball(folder, frame):
     return np.union1d(ball0, ball1)
 
 
-def process_sequence(sequence, min_frame, max_frame, split='val'):
+def process_sequence(sequence, min_frame, max_frame):
     seq = int(sequence.split('_')[-2])
     file = '%010d_%010d.ply' % (min_frame, max_frame)
     semantics_path = osp.join(DATA_HDMAP, sequence, 'semantic',
-                                  '%04d_%010d_%010d.npy' % (seq, min_frame, max_frame))
+                              '%04d_%010d_%010d.npy' % (seq, min_frame, max_frame))
     if osp.exists(semantics_path):
         return
     os.makedirs(osp.dirname(semantics_path), exist_ok=True)
-    fpath = osp.join(KITTI_360, KITTI_DATA_3D_SEMANTICS, split, sequence, 'static', file)
+    fpath = osp.join(KITTI_360, KITTI_DATA_3D_SEMANTICS, sequence, 'static', file)
     points = read_ply(fpath)
     points = np.array([points['x'], points['y'], points['z']]).T
     semantic3d = np.zeros((points.shape[0], 256), dtype=np.int32)
@@ -51,15 +51,15 @@ def process_sequence(sequence, min_frame, max_frame, split='val'):
     np.save(semantics_path, semantic3d)
 
 
-def draw_sequence(folder, split, file):
-    ply_file = osp.join(KITTI_360, KITTI_DATA_3D_SEMANTICS, split, folder, 'static', file)
+def draw_sequence(folder, file):
+    ply_file = osp.join(KITTI_360, KITTI_DATA_3D_SEMANTICS, folder, 'static', file)
     points = read_ply(ply_file)
     points = np.array([points['x'], points['y'], points['z']]).T
     min_frame, max_frame = osp.splitext(file)[0].split('_')
     min_frame, max_frame = int(min_frame), int(max_frame)
     seq = int(folder.split('_')[-2])
     semantics_path = osp.join(DATA_HDMAP, folder, 'semantic',
-                                  '%04d_%010d_%010d.npy' % (seq, min_frame, max_frame))
+                              '%04d_%010d_%010d.npy' % (seq, min_frame, max_frame))
     semantic3d = np.load(semantics_path)
     colors = labelId2color[semantic3d]
     pcd = open3d.geometry.PointCloud()
@@ -71,6 +71,7 @@ def draw_sequence(folder, split, file):
 def main():
     process_sequence('2013_05_28_drive_0000_sync', 2, 385)
 
+
 if __name__ == '__main__':
     # main()
-    draw_sequence('2013_05_28_drive_0000_sync', 'val' '0000000002_0000000385.ply')
+    draw_sequence('2013_05_28_drive_0000_sync', '0000000002_0000000385.ply')
