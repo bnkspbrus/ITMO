@@ -5,6 +5,7 @@ import os.path as osp
 import tqdm
 from kitti360scripts.helpers.project import CameraFisheye, CameraPerspective
 from torch.utils.data import Dataset, DataLoader
+import logging as log
 
 
 class CameraFisheyeV2(CameraFisheye):
@@ -71,9 +72,9 @@ def image2equirect(srcFrame, cam, outShape=(1400, 2800)):
     )
 
 
-KITTI_360 = 'KITTI-360'
-DATA_2D_RAW = 'data_2d_raw'
-DATA_2D_EQUIRECT = 'data_2d_equirect'
+KITTI_360 = '/home/jupyter/datasphere/project/KITTI-360/kitti360mm/raw'
+KITTI_DATA_2D_RAW = 'data_2d_raw'
+DATA_2D_EQUIRECT = '/home/jupyter/datasphere/project/ITMO/data_2d_equirect'
 cam0 = CameraPerspective(KITTI_360, cam_id=0)
 cam1 = CameraPerspective(KITTI_360, cam_id=1)
 cam2 = CameraFisheyeV2(KITTI_360, cam_id=2)
@@ -81,7 +82,7 @@ cam3 = CameraFisheyeV2(KITTI_360, cam_id=3)
 
 
 def process_image(seq, cam_id, image_name):
-    image_path = osp.join(KITTI_360, DATA_2D_RAW, seq, f'image_0{cam_id}', 'data_rgb', image_name)
+    image_path = osp.join(KITTI_360, KITTI_DATA_2D_RAW, seq, f'image_0{cam_id}', 'data_rgb', image_name)
     image = cv2.imread(image_path)
     if cam_id == 0:
         equi = image2equirect(image, cam0)
@@ -102,7 +103,7 @@ class ImageDataset(Dataset):
     def __init__(self, sequence, cam_id, image_lower_bound, image_upper_bound):
         self.sequence = sequence
         self.cam_id = cam_id
-        self.images = os.listdir(osp.join(KITTI_360, DATA_2D_RAW, sequence, f'image_0{cam_id}', 'data_rgb'))
+        self.images = os.listdir(osp.join(KITTI_360, KITTI_DATA_2D_RAW, sequence, f'image_0{cam_id}', 'data_rgb'))
         self.images = list(
             filter(lambda x: image_lower_bound <= int(osp.splitext(x)[0]) <= image_upper_bound, self.images))
         # filter processed images
@@ -118,10 +119,12 @@ class ImageDataset(Dataset):
 
 
 def process_sequence(sequence, image_lower_bound, image_upper_bound):
+    log.debug(f"Processing equirectangular projections: {sequence}/{image_lower_bound}_{image_upper_bound}")
     for cam_id in (2, 3):
         dataset = ImageDataset(sequence, cam_id, image_lower_bound, image_upper_bound)
         dataloader = DataLoader(dataset, batch_size=4, num_workers=4, shuffle=False)
         list(tqdm.tqdm(dataloader, total=len(dataset)))
+    log.debug(f"Processing equirectangular projections finished: {sequence}/{image_lower_bound}_{image_upper_bound}")
 
 
 if __name__ == '__main__':

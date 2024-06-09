@@ -13,11 +13,11 @@ import pandas as pd
 import re
 import pickle
 
-DATA_2D_SEMANTICS = "data_2d_semantics"
-DATA_3D_SEMANTICS = "data_3d_semantics"
+DATA_2D_SEMANTICS = "/home/jupyter/datasphere/project/ITMO/data_2d_semantics"
+DATA_3D_SEMANTICS = "/home/jupyter/datasphere/project/ITMO/data_3d_semantics"
 KITTI_DATA_3D_SEMANTICS = "data_3d_semantics"
-DATA_3D_PROJECTION = "data_3d_projection"
-KITTI_360 = 'KITTI-360'
+DATA_3D_PROJECTION = "/home/jupyter/datasphere/project/ITMO/data_3d_projection"
+KITTI_360 = "/home/jupyter/datasphere/project/KITTI-360/kitti360mm/raw"
 
 id2color = np.zeros((256, 3), dtype=np.uint8)
 for id, label in id2label.items():

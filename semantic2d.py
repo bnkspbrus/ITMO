@@ -10,6 +10,7 @@ from transformers import OneFormerProcessor, OneFormerForUniversalSegmentation
 from kitti360scripts.helpers.labels import trainId2label
 from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
+import logging as log
 
 trainId2labelId = np.zeros(256, dtype=np.uint8)
 for trainId, label in trainId2label.items():
@@ -27,8 +28,8 @@ device = (
     else "cpu"
 )
 
-DATA_2D_EQUIRECT = "data_2d_equirect"
-DATA_2D_SEMANTICS = "data_2d_semantics"
+DATA_2D_EQUIRECT = "/home/jupyter/datasphere/project/ITMO/data_2d_equirect"
+DATA_2D_SEMANTICS = "/home/jupyter/datasphere/project/ITMO/data_2d_semantics"
 
 m2f_processor = AutoImageProcessor.from_pretrained("facebook/mask2former-swin-large-cityscapes-panoptic")
 m2f_model = (Mask2FormerForUniversalSegmentation
@@ -104,6 +105,7 @@ def process_result(i, j, result, sequence):
 
 
 def process_sequence(sequence, image_lower_bound, image_upper_bound, model_name='mask2former'):
+    log.debug(f"Processing panoptic segmentations: {sequence}/{image_lower_bound}_{image_upper_bound}")
     dataset = SidesDataset(sequence, image_lower_bound, image_upper_bound)
     loader = DataLoader(dataset, batch_size=4, num_workers=4, shuffle=False)
     if model_name == 'mask2former':
@@ -136,6 +138,7 @@ def process_sequence(sequence, image_lower_bound, image_upper_bound, model_name=
 
         list(map(lambda x: process_result(x[0], x[1][0] % 6, x[1][1], sequence),
                  zip(frame, enumerate(results))))
+        log.debug(f"Processing panoptic segmentations finished: {sequence}/{image_lower_bound}_{image_upper_bound}")
 
 
 if __name__ == '__main__':
