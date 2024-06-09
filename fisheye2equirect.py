@@ -104,6 +104,7 @@ class ImageDataset(Dataset):
         self.sequence = sequence
         self.cam_id = cam_id
         self.images = os.listdir(osp.join(KITTI_360, KITTI_DATA_2D_RAW, sequence, f'image_0{cam_id}', 'data_rgb'))
+        self.images = list(filter(lambda x: x.endswith('.png'), self.images))
         self.images = list(
             filter(lambda x: image_lower_bound <= int(osp.splitext(x)[0]) <= image_upper_bound, self.images))
         # filter processed images
