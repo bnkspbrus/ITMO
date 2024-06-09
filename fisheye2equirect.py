@@ -74,7 +74,7 @@ def image2equirect(srcFrame, cam, outShape=(1400, 2800)):
     )
 
 
-KITTI_360 = 'KITTI-360'
+KITTI_360 = '/home/jupyter/datasphere/project/KITTI-360/kitti360mm/raw'
 KITTI_DATA_2D_RAW = 'data_2d_raw'
 DATA_2D_EQUIRECT = 'data_2d_equirect'
 cam0 = CameraPerspective(KITTI_360, seq='2013_05_28_drive_0000_sync', cam_id=0)
