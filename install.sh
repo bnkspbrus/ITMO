@@ -1,4 +1,4 @@
-f#!/bin/bash
+#!/bin/bash
 
 # Recover the project directory from the position of the install.sh script
 HERE=`dirname $0`
@@ -109,7 +109,7 @@ echo "________________ Installation _______________"
 echo
 
 # Create deep_view_aggregation environment from yml
-#conda env create -f ${YML_FILE}
+conda env create -f ${YML_FILE}
 
 # Activate the env
 source ${CONDA_DIR}/etc/profile.d/conda.sh  
@@ -117,7 +117,8 @@ conda activate ${PROJECT_NAME}
 
 # Dependencies not installed from the .yml
 # See https://pytorch.org/get-started/previous-versions/ if wheel issues
-pip install torch==${TORCH} torchvision==0.8.2 --no-cache-dir -f https://download.pytorch.org/whl/cu110
+pip install https://download.pytorch.org/whl/typing_extensions-4.4.0-py3-none-any.whl
+pip install torch==${TORCH}+${cuXXX_TORCH} torchvision==0.8.2+${cuXXX_TV} --no-cache-dir -f https://download.pytorch.org/whl/torch_stable.html
 pip install torchnet
 
 # Install torch-geometric and dependencies
@@ -127,7 +128,7 @@ pip install --no-index torch-sparse -f https://pytorch-geometric.com/whl/torch-$
 pip install --no-index torch-cluster -f https://pytorch-geometric.com/whl/torch-${TORCH}+${cuXXX_PYG}.html
 pip install --no-index torch-spline-conv -f https://pytorch-geometric.com/whl/torch-${TORCH}+${cuXXX_PYG}.html
 pip install torch-geometric==1.6.3
-FORCE_CUDA=1 pip install torch-points-kernels==0.6.10 --no-cache-dir
+FORCE_CUDA=1 PATH=$CUDA_HOME/bin:$PATH CPATH=$CUDA_HOME/include:$CPATH pip install torch-points-kernels==0.6.10 --no-cache-dir
 
 # Additional dependencies
 pip install omegaconf
@@ -147,19 +148,21 @@ pip install h5py
 pip install faiss-gpu===1.6.5
 
 # Install MinkowskiEngine
-apt-get update && apt-get clean && apt install -y libopenblas-dev
-FORCE_CUDA=1 pip install -U MinkowskiEngine==v0.4.3 --install-option="--blas=openblas" -v --no-deps
+apt-get update && apt-get clean && apt-get install -y libopenblas-dev
+pip install -U MinkowskiEngine==v0.4.3 -v --no-deps --install-option="--blas=openblas" --install-option="--force_cuda"
 
 # Install torchsparse
 apt-get update && apt-get clean && apt-get install -y libsparsehash-dev
-FORCE_CUDA=1 pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.1.0
+pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.1.0
 #pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.4.0
 
 # Install plotly and associated jupyter requirements
 pip install plotly==5.4.0
 pip install "jupyterlab>=3" "ipywidgets>=7.6"
 pip install jupyter-dash
-jupyter labextension install @jupyter-widgets/jupyterlab-manager plotlywidget@4.14.1
+#jupyter labextension install @jupyter-widgets/jupyterlab-manager plotlywidget@4.14.1
+npm i @jupyter-widgets/jupyterlab-manager
+npm i plotlywidget@4.14.1
 echo "NB: In case you want to use our notebooks, make sure the 'deep_view_aggregation' kernel is accessible in jupyterlab"
 echo
 echo
