@@ -74,11 +74,11 @@ def image2equirect(srcFrame, cam, outShape=(1400, 2800)):
 
 KITTI_360 = '/home/jupyter/datasphere/project/KITTI-360/kitti360mm/raw'
 KITTI_DATA_2D_RAW = 'data_2d_raw'
-DATA_2D_EQUIRECT = '/home/jupyter/datasphere/project/ITMO/data_2d_equirect'
-cam0 = CameraPerspective(KITTI_360, cam_id=0)
-cam1 = CameraPerspective(KITTI_360, cam_id=1)
-cam2 = CameraFisheyeV2(KITTI_360, cam_id=2)
-cam3 = CameraFisheyeV2(KITTI_360, cam_id=3)
+DATA_2D_EQUIRECT = 'data_2d_equirect'
+cam0 = CameraPerspective(KITTI_360,seq='2013_05_28_drive_0000_sync', cam_id=0)
+cam1 = CameraPerspective(KITTI_360,seq='2013_05_28_drive_0000_sync', cam_id=1)
+cam2 = CameraFisheyeV2(KITTI_360,seq='2013_05_28_drive_0000_sync', cam_id=2)
+cam3 = CameraFisheyeV2(KITTI_360,seq='2013_05_28_drive_0000_sync', cam_id=3)
 
 
 def process_image(seq, cam_id, image_name):
@@ -125,7 +125,7 @@ def process_sequence(sequence, image_lower_bound, image_upper_bound):
     for cam_id in (2, 3):
         dataset = ImageDataset(sequence, cam_id, image_lower_bound, image_upper_bound)
         dataloader = DataLoader(dataset, batch_size=4, num_workers=4, shuffle=False)
-        list(tqdm.tqdm(dataloader, total=len(dataset)))
+        list(tqdm.tqdm(dataloader, total=len(dataloader)))
     log.debug(f"Processing equirectangular projections finished: {sequence}/{image_lower_bound}_{image_upper_bound}")
 
 
