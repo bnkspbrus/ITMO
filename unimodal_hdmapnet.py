@@ -5,7 +5,7 @@ from semantic3d import process_sequence as process_3d_semantic_sequence
 from semantic_hdmap import process_sequence as process_hdmap_sequence
 
 
-def eval_unimodal_hdmapnet(model_name='segformer', merge_method='cluster'):
+def eval_semantic(model_name='mask2former', merge_method='cluster'):
     for window in WINDOWS['val']:
         sequence = window.split('/')[0]
         image_lower_bound, image_upper_bound = map(int, window.split('/')[1].split('_'))
@@ -22,7 +22,7 @@ def eval_unimodal_hdmapnet(model_name='segformer', merge_method='cluster'):
 
 
 def main():
-    eval_unimodal_hdmapnet()
+    eval_semantic()
 
 
 if __name__ == '__main__':
