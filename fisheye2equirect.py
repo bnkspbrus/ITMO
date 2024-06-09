@@ -2,10 +2,12 @@ import cv2
 import numpy as np
 import os
 import os.path as osp
-import tqdm
+from tqdm import tqdm
 from kitti360scripts.helpers.project import CameraFisheye, CameraPerspective
 from torch.utils.data import Dataset, DataLoader
 import logging as log
+import torch
+from kitti360_config import CACHING_ENABLED
 
 
 class CameraFisheyeV2(CameraFisheye):
@@ -94,9 +96,10 @@ def process_image(seq, cam_id, image_name):
         equi = image2equirect(image, cam3)
     else:
         raise ValueError('Invalid cam_id')
-    out_path = osp.join(DATA_2D_EQUIRECT, seq, f'image_0{cam_id}', image_name)
-    os.makedirs(osp.dirname(out_path), exist_ok=True)
-    cv2.imwrite(out_path, equi)
+    if CACHING_ENABLED:
+        out_path = osp.join(DATA_2D_EQUIRECT, seq, f'image_0{cam_id}', image_name)
+        os.makedirs(osp.dirname(out_path), exist_ok=True)
+        cv2.imwrite(out_path, equi)
     return equi
 
 
@@ -122,11 +125,15 @@ class ImageDataset(Dataset):
 
 def process_sequence(sequence, image_lower_bound, image_upper_bound):
     log.debug(f"Processing equirectangular projections: {sequence}/{image_lower_bound}_{image_upper_bound}")
+    out = [None, None]
     for cam_id in (2, 3):
         dataset = ImageDataset(sequence, cam_id, image_lower_bound, image_upper_bound)
         dataloader = DataLoader(dataset, batch_size=4, num_workers=4, shuffle=False)
-        list(tqdm.tqdm(dataloader, total=len(dataloader)))
+        # cat all images in one tensor
+        # list(tqdm(dataloader, total=len(dataloader)))
+        out[cam_id] = torch.cat(list(tqdm(dataloader, total=len(dataloader))), dim=0)
     log.debug(f"Processing equirectangular projections finished: {sequence}/{image_lower_bound}_{image_upper_bound}")
+    return out
 
 
 if __name__ == '__main__':

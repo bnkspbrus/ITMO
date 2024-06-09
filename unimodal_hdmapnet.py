@@ -9,7 +9,7 @@ def eval_semantic(model_name='mask2former', merge_method='cluster'):
     for window in WINDOWS['val']:
         sequence = window.split('/')[0]
         image_lower_bound, image_upper_bound = map(int, window.split('/')[1].split('_'))
-        process_fisheye_sequence(sequence, image_lower_bound, image_upper_bound)
+        out_02, out_03 = process_fisheye_sequence(sequence, image_lower_bound, image_upper_bound)
         if model_name == 'segformer':
             # throw not implemented error
             raise NotImplementedError
