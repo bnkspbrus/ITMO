@@ -3,11 +3,8 @@ opencv-python
 tqdm
 py360convert
 transformers
-torch
-torchvision
-torchaudio
 pycocotools
-pillow
-matplotlib
-open3d
+open3d==0.17.0
 pandas
+git+https://github.com/autonomousvision/kitti360Scripts.git
+pyyaml==5.4.1
