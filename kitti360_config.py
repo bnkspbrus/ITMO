@@ -13,3 +13,5 @@ WINDOWS = {
 
 SEQUENCES = {
     k: list(set(osp.dirname(x) for x in v)) for k, v in WINDOWS.items()}
+
+CACHING_ENABLED = False
