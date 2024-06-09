@@ -49,7 +49,7 @@ class SidesDataset(Dataset):
             filter(lambda x: image_lower_bound <= int(x.split('.')[0]) <= image_upper_bound, self.frames))
         # filter already processed frames
         self.frames = list(
-            filter(lambda x: not osp.exists(osp.join(DATA_2D_SEMANTICS, sequence, 'semantic', x.split("."), '0.png')),
+            filter(lambda x: not osp.exists(osp.join(DATA_2D_SEMANTICS, sequence, 'semantic', x.split('.')[0], '0.png')),
                    self.frames))
 
     def __len__(self):

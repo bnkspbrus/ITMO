@@ -95,6 +95,7 @@ def process_image(seq, cam_id, image_name):
     else:
         raise ValueError('Invalid cam_id')
     out_path = osp.join(DATA_2D_EQUIRECT, seq, f'image_0{cam_id}', image_name)
+    os.makedirs(osp.dirname(out_path), exist_ok=True)
     cv2.imwrite(out_path, equi)
     return equi
 
