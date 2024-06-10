@@ -34,6 +34,10 @@ feature_extractor = SegformerFeatureExtractor.from_pretrained("nvidia/segformer-
 model = SegformerForSemanticSegmentation.from_pretrained("nvidia/segformer-b0-finetuned-cityscapes-768-768").to(device)
 
 
+def semantic_absent(frame, sequence):
+    return not osp.exists(osp.join(DATA_2D_SEMANTICS, sequence, 'semantic', f'{frame[0]:010d}', '0.png'))
+
+
 class SidesDataset(Dataset):
     def __init__(self, sequence, min_frame, max_frame, rect_02=None, rect_03=None, frames=None):
         self.sequence = sequence
@@ -44,16 +48,21 @@ class SidesDataset(Dataset):
             self.frames = list(filter(lambda x: x.endswith('.png'), self.frames))
             self.frames = list(map(lambda x: int(x.split('.')[0]), self.frames))
             self.frames = list(filter(lambda x: min_frame <= x <= max_frame, self.frames))
-        self.rect_02 = rect_02
-        self.rect_03 = rect_03
+            # check image_03 exists
+            self.frames = list(
+                filter(lambda x: osp.exists(osp.join(DATA_2D_EQUIRECT, sequence, 'image_03', f'{x:010d}.png')),
+                       self.frames))
+        self.frames = np.array(self.frames)
+        idx_frames_mask = np.apply_along_axis(semantic_absent, 1, self.frames[:, None], sequence)
+        self.idx_frames = self.frames[idx_frames_mask]
+        self.rect_02 = rect_02[idx_frames_mask] if rect_02 is not None else None
+        self.rect_03 = rect_03[idx_frames_mask] if rect_03 is not None else None
 
     def __len__(self):
-        return len(self.frames)
+        return len(self.idx_frames)
 
     def __getitem__(self, idx):
-        frame = self.frames[idx]
-        if osp.exists(osp.join(DATA_2D_SEMANTICS, self.sequence, 'semantic', f'{frame:010d}')):
-            return np.array([], ndmin=4), np.array([], ndmin=1), np.array([], ndmin=1)
+        frame = self.idx_frames[idx]
         if self.rect_02 is not None and self.rect_03 is not None:
             image_02 = self.rect_02[idx]
             image_03 = self.rect_03[idx]
@@ -61,8 +70,6 @@ class SidesDataset(Dataset):
             image_02_path = osp.join(DATA_2D_EQUIRECT, self.sequence, 'image_02', '%010d.png' % frame)
             image_02 = Image.open(image_02_path)
             image_03_path = osp.join(DATA_2D_EQUIRECT, self.sequence, 'image_03', '%010d.png' % frame)
-            if not osp.exists(image_03_path):
-                return np.array([], ndmin=4), np.array([], ndmin=1), np.array([], ndmin=1)
             image_03 = Image.open(image_03_path)
         image_02 = np.roll(np.array(image_02), -350, axis=1)
         image_03 = np.roll(np.array(image_03), 1050, axis=1)
@@ -113,15 +120,16 @@ def process_sequence(sequence, min_frame, max_frame, model_name='segformer', rec
     for i, (frame, result, index) in enumerate(zip(frames, semantics, indexes)):
         os.makedirs(osp.join(DATA_2D_SEMANTICS, sequence, 'semantic', f'{frame:010d}'), exist_ok=True)
         os.makedirs(osp.join(DATA_2D_SEMANTICS, sequence, 'semantic_rgb', f'{frame:010d}'), exist_ok=True)
-        Image.fromarray(result).save(osp.join(DATA_2D_SEMANTICS, sequence, 'semantic', f'{frame:010d}', f'{index}.png'))
-        Image.fromarray(trainId2color[result]).save(
+        Image.fromarray(result.numpy().astype(np.uint8)).save(
+            osp.join(DATA_2D_SEMANTICS, sequence, 'semantic', f'{frame:010d}', f'{index}.png'))
+        Image.fromarray(trainId2color[result.numpy().astype(np.uint8)]).save(
             osp.join(DATA_2D_SEMANTICS, sequence, 'semantic_rgb', f'{frame:010d}', f'{index}.png'))
 
     cached_frames = ~np.in1d(data_frames, frames)
     cached_semantics = np.apply_along_axis(load_semantics, 0, data_frames[cached_frames], sequence)
 
-    frames = np.concatenate([frames, data_frames[cached_frames]])
-    semantics = np.concatenate([semantics, cached_semantics])
+    frames = torch.cat([torch.tensor(frames), data_frames[cached_frames]], dim=0)
+    semantics = torch.cat([torch.tensor(semantics), torch.tensor(cached_semantics)], dim=0)
 
     log.debug(f"Processing semantic segmentations finished: {sequence}/{min_frame}_{max_frame}")
     return semantics, frames
