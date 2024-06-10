@@ -92,7 +92,7 @@ class SidesDataset(Dataset):
 def load_semantics(frame, sequence):
     semantics = []
     for i in range(6):
-        path = osp.join(DATA_2D_SEMANTICS, sequence, 'semantic', f'{frame:010d}', f'{i}.png')
+        path = osp.join(DATA_2D_SEMANTICS, sequence, 'semantic', f'{frame[0]:010d}', f'{i}.png')
         semantics.append(np.array(Image.open(path)))
     return np.array(semantics)
 
@@ -126,7 +126,7 @@ def process_sequence(sequence, min_frame, max_frame, model_name='segformer', rec
             osp.join(DATA_2D_SEMANTICS, sequence, 'semantic_rgb', f'{frame:010d}', f'{index}.png'))
 
     cached_frames = ~np.in1d(data_frames, frames)
-    cached_semantics = np.apply_along_axis(load_semantics, 0, data_frames[cached_frames], sequence)
+    cached_semantics = np.apply_along_axis(load_semantics, 1, data_frames[cached_frames:, None], sequence)
 
     frames = torch.cat([torch.tensor(frames), data_frames[cached_frames]], dim=0)
     semantics = torch.cat([torch.tensor(semantics), torch.tensor(cached_semantics)], dim=0)
