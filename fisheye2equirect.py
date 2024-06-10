@@ -74,7 +74,7 @@ def image2equirect(srcFrame, cam, outShape=(1400, 2800)):
     )
 
 
-KITTI_360 = '/home/jupyter/datasphere/project/KITTI-360/kitti360mm/raw'
+KITTI_360 = 'KITTI-360'
 KITTI_DATA_2D_RAW = 'data_2d_raw'
 DATA_2D_EQUIRECT = 'data_2d_equirect'
 cam0 = CameraPerspective(KITTI_360, seq='2013_05_28_drive_0000_sync', cam_id=0)
@@ -120,19 +120,24 @@ class ImageDataset(Dataset):
             # load cached image
             return cv2.imread(osp.join(DATA_2D_EQUIRECT, self.sequence, f'image_0{self.cam_id}', self.images[idx]))
         # process image
-        return process_image(self.sequence, self.cam_id, self.images[idx])
+        return process_image(self.sequence, self.cam_id, self.images[idx]), int(osp.splitext(self.images[idx])[0])
 
 
 def process_sequence(sequence, image_lower_bound, image_upper_bound):
     log.debug(f"Processing equirectangular projections: {sequence}/{image_lower_bound}_{image_upper_bound}")
     dataset = ImageDataset(sequence, 2, image_lower_bound, image_upper_bound)
     dataloader = DataLoader(dataset, batch_size=4, num_workers=4, shuffle=False)
-    out_02 = torch.cat(list(tqdm(dataloader, total=len(dataloader))), dim=0)
+    data_02 = list(tqdm(dataloader, total=len(dataloader)))
+    rect_02 = torch.cat([torch.tensor(x) for x, _ in data_02], dim=0)
+    frame_02 = torch.cat([torch.tensor(x) for _, x in data_02], dim=0)
     dataset = ImageDataset(sequence, 3, image_lower_bound, image_upper_bound)
     dataloader = DataLoader(dataset, batch_size=4, num_workers=4, shuffle=False)
-    out_03 = torch.cat(list(tqdm(dataloader, total=len(dataloader))), dim=0)
+    data_03 = list(tqdm(dataloader, total=len(dataloader)))
+    rect_03 = torch.cat([torch.tensor(x) for x, _ in data_03], dim=0)
+    frame_03 = torch.cat([torch.tensor(x) for _, x in data_03], dim=0)
+    assert torch.all(frame_02 == frame_03)
     log.debug(f"Processing equirectangular projections finished: {sequence}/{image_lower_bound}_{image_upper_bound}")
-    return out_02, out_03
+    return rect_02, rect_03, frame_02
 
 
 if __name__ == '__main__':
