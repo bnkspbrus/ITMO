@@ -4,7 +4,7 @@ tqdm
 py360convert
 transformers
 pycocotools
-open3d==0.17.0
+open3d==0.13.0
 pandas
 git+https://github.com/autonomousvision/kitti360Scripts.git
 pyyaml==5.4.1
