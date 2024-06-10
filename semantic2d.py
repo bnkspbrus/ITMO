@@ -107,8 +107,8 @@ def process_sequence(sequence, min_frame, max_frame, model_name='segformer', rec
 
         result = feature_extractor.post_process_semantic_segmentation(outputs, target_sizes=[(700, 700)] * len(images))
         semantics.extend(result)
-        frames.extend(frames_)
-        indexes.extend(idxs)
+        frames.extend(frames_.reshape(-1))
+        indexes.extend(idxs.reshape(-1))
 
     for i, (frame, result, index) in enumerate(zip(frames, semantics, indexes)):
         os.makedirs(osp.join(DATA_2D_SEMANTICS, sequence, 'semantic', f'{frame:010d}'), exist_ok=True)
