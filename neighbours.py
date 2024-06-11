@@ -5,7 +5,7 @@ import os
 import numpy as np
 from kitti360_config import CACHING_ENABLED, LOADING_ENABLED
 
-K = 10000
+K = 100000
 KITTI_360 = "/home/jupyter/datasphere/project/KITTI-360/kitti360mm/raw"
 DATA_NEIGHBOURS = "/home/jupyter/datasphere/project/ITMO/data_neighbours"
 

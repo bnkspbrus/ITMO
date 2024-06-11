@@ -6,11 +6,11 @@ import numpy as np
 import open3d
 from kitti360_config import CACHING_ENABLED, LOADING_ENABLED
 
-DATA_3D_SEMANTICS = "data_3d_semantics"
-KITTI_DATA_3D_SEMANTICS = "data_3d_semantics"
-DATA_HDMAP = "data_hdmap"
-KITTI_360 = "KITTI-360"
-DATA_NEIGHBOURS = "data_neighbours"
+DATA_3D_SEMANTICS = "/home/jupyter/datasphere/project/ITMO/data_3d_semantics"
+KITTI_DATA_3D_SEMANTICS = "/home/jupyter/datasphere/project/ITMO/data_3d_semantics"
+DATA_HDMAP = "/home/jupyter/datasphere/project/ITMO/data_hdmap"
+KITTI_360 = "/home/jupyter/datasphere/project/KITTI-360/kitti360mm/raw"
+DATA_NEIGHBOURS = "/home/jupyter/datasphere/project/ITMO/data_neighbours"
 
 labelId2color = np.zeros((256, 3), dtype=np.uint8)
 for labelId, label in id2label.items():
@@ -59,18 +59,20 @@ def process_sequence(sequence, min_frame, max_frame, points=None, semantics3d=No
         non_zero_mask = semantic3d != 0
         semantic_hdmap[neighbors_idx[non_zero_mask], semantic3d[non_zero_mask]] += 1
     semantic_hdmap = np.argmax(semantic_hdmap, axis=1)
+    if CACHING_ENABLED:
+        out_path = osp.join(DATA_HDMAP, sequence, 'semantic')
+        os.makedirs(out_path, exist_ok=True)
+        np.save(osp.join(out_path, f'{min_frame:010d}_{max_frame:010d}.npy'), semantic_hdmap)
     return semantic_hdmap
 
 
-def draw_sequence(folder, file):
-    ply_file = osp.join(KITTI_360, KITTI_DATA_3D_SEMANTICS, folder, 'static', file)
+def draw_sequence(sequence, file):
+    ply_file = osp.join(KITTI_360, KITTI_DATA_3D_SEMANTICS, sequence, 'static', file)
     points = read_ply(ply_file)
     points = np.array([points['x'], points['y'], points['z']]).T
     min_frame, max_frame = osp.splitext(file)[0].split('_')
     min_frame, max_frame = int(min_frame), int(max_frame)
-    seq = int(folder.split('_')[-2])
-    semantics_path = osp.join(DATA_HDMAP, folder, 'semantic',
-                              '%04d_%010d_%010d.npy' % (seq, min_frame, max_frame))
+    semantics_path = osp.join(DATA_HDMAP, sequence, 'semantic', f'{min_frame:010d}_{max_frame:010d}.npy')
     semantic3d = np.load(semantics_path)
     colors = labelId2color[semantic3d]
     pcd = open3d.geometry.PointCloud()
@@ -84,5 +86,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
-    # draw_sequence('2013_05_28_drive_0000_sync', '0000000002_0000000385.ply')
+    # main()
+    draw_sequence('2013_05_28_drive_0000_sync', '0000000372_0000000610.ply')
