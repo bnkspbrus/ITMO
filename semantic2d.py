@@ -10,6 +10,7 @@ from kitti360scripts.helpers.labels import trainId2label
 from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
 import logging as log
+from kitti360_config import CACHING_ENABLED
 
 trainId2labelId = np.zeros(256, dtype=np.uint8)
 for trainId, label in trainId2label.items():
@@ -117,13 +118,14 @@ def process_sequence(sequence, min_frame, max_frame, model_name='segformer', rec
         frames.extend(frames_.reshape(-1))
         indexes.extend(idxs.reshape(-1))
 
-    for i, (frame, result, index) in enumerate(zip(frames, semantics, indexes)):
-        os.makedirs(osp.join(DATA_2D_SEMANTICS, sequence, 'semantic', f'{frame:010d}'), exist_ok=True)
-        os.makedirs(osp.join(DATA_2D_SEMANTICS, sequence, 'semantic_rgb', f'{frame:010d}'), exist_ok=True)
-        Image.fromarray(result.numpy().astype(np.uint8)).save(
-            osp.join(DATA_2D_SEMANTICS, sequence, 'semantic', f'{frame:010d}', f'{index}.png'))
-        Image.fromarray(trainId2color[result.numpy().astype(np.uint8)]).save(
-            osp.join(DATA_2D_SEMANTICS, sequence, 'semantic_rgb', f'{frame:010d}', f'{index}.png'))
+    if CACHING_ENABLED:
+        for i, (frame, result, index) in enumerate(zip(frames, semantics, indexes)):
+            os.makedirs(osp.join(DATA_2D_SEMANTICS, sequence, 'semantic', f'{frame:010d}'), exist_ok=True)
+            os.makedirs(osp.join(DATA_2D_SEMANTICS, sequence, 'semantic_rgb', f'{frame:010d}'), exist_ok=True)
+            Image.fromarray(result.numpy().astype(np.uint8)).save(
+                osp.join(DATA_2D_SEMANTICS, sequence, 'semantic', f'{frame:010d}', f'{index}.png'))
+            Image.fromarray(trainId2color[result.numpy().astype(np.uint8)]).save(
+                osp.join(DATA_2D_SEMANTICS, sequence, 'semantic_rgb', f'{frame:010d}', f'{index}.png'))
 
     cached_frames = ~np.in1d(data_frames, frames)
     cached_semantics = np.apply_along_axis(load_semantics, 1, data_frames[cached_frames, None], sequence)
