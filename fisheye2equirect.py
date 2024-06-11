@@ -118,7 +118,8 @@ class ImageDataset(Dataset):
     def __getitem__(self, idx):
         if osp.exists(osp.join(DATA_2D_EQUIRECT, self.sequence, f'image_0{self.cam_id}', self.images[idx])):
             # load cached image
-            return cv2.imread(osp.join(DATA_2D_EQUIRECT, self.sequence, f'image_0{self.cam_id}', self.images[idx]))
+            return cv2.imread(osp.join(DATA_2D_EQUIRECT, self.sequence, f'image_0{self.cam_id}', self.images[idx])), int(
+                osp.splitext(self.images[idx])[0])
         # process image
         return process_image(self.sequence, self.cam_id, self.images[idx]), int(osp.splitext(self.images[idx])[0])
 
