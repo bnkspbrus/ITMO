@@ -124,20 +124,20 @@ class ImageDataset(Dataset):
         return process_image(self.sequence, self.cam_id, self.images[idx]), int(osp.splitext(self.images[idx])[0])
 
 
-def process_sequence(sequence, image_lower_bound, image_upper_bound):
-    log.debug(f"Processing equirectangular projections: {sequence}/{image_lower_bound}_{image_upper_bound}")
-    dataset = ImageDataset(sequence, 2, image_lower_bound, image_upper_bound)
+def process_sequence(sequence, min_frame, max_frame):
+    log.debug(f"Processing equirectangular projections: {sequence}/{min_frame}_{max_frame}")
+    dataset = ImageDataset(sequence, 2, min_frame, max_frame)
     dataloader = DataLoader(dataset, batch_size=4, num_workers=4, shuffle=False)
     data_02 = list(tqdm(dataloader, total=len(dataloader)))
     rect_02 = torch.cat([torch.tensor(x) for x, _ in data_02], dim=0)
     frame_02 = torch.cat([torch.tensor(x) for _, x in data_02], dim=0)
-    dataset = ImageDataset(sequence, 3, image_lower_bound, image_upper_bound)
+    dataset = ImageDataset(sequence, 3, min_frame, max_frame)
     dataloader = DataLoader(dataset, batch_size=4, num_workers=4, shuffle=False)
     data_03 = list(tqdm(dataloader, total=len(dataloader)))
     rect_03 = torch.cat([torch.tensor(x) for x, _ in data_03], dim=0)
     frame_03 = torch.cat([torch.tensor(x) for _, x in data_03], dim=0)
     assert torch.all(frame_02 == frame_03)
-    log.debug(f"Processing equirectangular projections finished: {sequence}/{image_lower_bound}_{image_upper_bound}")
+    log.debug(f"Processing equirectangular projections finished: {sequence}/{min_frame}_{max_frame}")
     return rect_02, rect_03, frame_02
 
 

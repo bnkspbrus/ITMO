@@ -3,7 +3,7 @@ import open3d.ml.torch as ml3d
 import os.path as osp
 import os
 import numpy as np
-from kitti360_config import CACHING_ENABLED
+from kitti360_config import CACHING_ENABLED, LOADING_ENABLED
 
 K = 10000
 KITTI_360 = "/home/jupyter/datasphere/project/KITTI-360/kitti360mm/raw"
@@ -21,9 +21,18 @@ def load_cam_poses(sequnce, frames0):
     return trans[mapping[frames0]]
 
 
+def load_neighbours(sequence, min_frame, max_frame, frames):
+    out_path = osp.join(DATA_NEIGHBOURS, sequence, f'{min_frame:010d}_{max_frame:010d}')
+    neighbors_path = osp.join(out_path, 'neighbors.npy')
+    frames_path = osp.join(out_path, 'frames.npy')
+    frames0 = np.load(frames_path)
+    assert np.all(frames0 == frames)
+    return np.load(neighbors_path), frames
+
+
 def search_neighbours(points, sequence, frames, min_frame, max_frame):
-    if osp.exists(osp.join(DATA_NEIGHBOURS, sequence, f'{min_frame:010d}_{max_frame:010d}.npy')):
-        return np.load(osp.join(DATA_NEIGHBOURS, sequence, f'{min_frame:010d}_{max_frame:010d}.npy'))
+    if LOADING_ENABLED and osp.exists(osp.join(DATA_NEIGHBOURS, sequence, f'{min_frame:010d}_{max_frame:010d}')):
+        return load_neighbours(sequence, min_frame, max_frame, frames)
     points = torch.tensor(points)
     cam_poses = load_cam_poses(sequence, frames)
     cam_poses = torch.tensor(cam_poses)
@@ -32,7 +41,9 @@ def search_neighbours(points, sequence, frames, min_frame, max_frame):
     neighbors = nsearch(points, cam_poses, K)
     neighbors_index = neighbors.neighbors_index.reshape(-1, K)
     if CACHING_ENABLED:
-        out_path = osp.join(DATA_NEIGHBOURS, sequence, f'{min_frame:010d}_{max_frame:010d}.npy')
-        os.makedirs(osp.dirname(out_path), exist_ok=True)
-        np.save(out_path, neighbors_index)
-    return neighbors_index
+        out_path = osp.join(DATA_NEIGHBOURS, sequence, f'{min_frame:010d}_{max_frame:010d}')
+        os.makedirs(out_path, exist_ok=True)
+        neighbors_path = osp.join(out_path, 'neighbors.npy')
+        np.save(neighbors_path, neighbors_index)
+        np.save(osp.join(out_path, 'frames.npy'), frames)
+    return neighbors_index, frames

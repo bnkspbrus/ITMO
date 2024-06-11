@@ -36,9 +36,12 @@ def eval_semantic(model_name='segformer', merge_method='cluster'):
         else:
             raise ValueError('Invalid model name')
         frames = frames.int()
-        neighbors_index = search_neighbours(points, sequence, frames, min_frame, max_frame)
-        # process_3d_semantic_sequence(sequence, min_frame, max_frame)
-        # process_hdmap_semantic_sequence(sequence, min_frame, max_frame)
+        neighbors_index, frames = search_neighbours(points, sequence, frames, min_frame, max_frame)
+        semantics3d, frames = process_3d_semantic_sequence(sequence, min_frame, max_frame, points, frames, semantics,
+                                                           neighbors_index)
+        semantic_hdmap = process_hdmap_semantic_sequence(sequence, min_frame, max_frame, points, semantics3d,
+                                                         neighbors_index)
+        return semantic_hdmap
 
 
 def main():

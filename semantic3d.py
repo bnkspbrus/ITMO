@@ -12,9 +12,11 @@ import open3d
 import pandas as pd
 import re
 import pickle
+from kitti360_config import LOADING_ENABLED, CACHING_ENABLED
 
 DATA_2D_SEMANTICS = "/home/jupyter/datasphere/project/ITMO/data_2d_semantics"
 DATA_3D_SEMANTICS = "/home/jupyter/datasphere/project/ITMO/data_3d_semantics"
+DATA_NEIGHBOURS = "/home/jupyter/datasphere/project/ITMO/data_neighbours"
 KITTI_DATA_3D_SEMANTICS = "data_3d_semantics"
 DATA_3D_PROJECTION = "/home/jupyter/datasphere/project/ITMO/data_3d_projection"
 KITTI_360 = "/home/jupyter/datasphere/project/KITTI-360/kitti360mm/raw"
@@ -52,12 +54,12 @@ def get_kdtree(points):
     return open3d.geometry.KDTreeFlann(pcd)
 
 
-def world2cam(cam, vertices, frameId):
-    curr_pose = cam.cam2world[frameId]
+def world2cam(cam, points, frame):
+    curr_pose = cam.cam2world[frame]
     T = curr_pose[:3, 3]
     R = curr_pose[:3, :3]
 
-    return cam.world2cam(vertices, R, T, True)
+    return cam.world2cam(points, R, T, True)
 
 
 def z_buffer(u, v, depth):
@@ -196,59 +198,126 @@ def search_balls(curr_pose0, curr_pose1, points, folder, frame, radius):
     return ball0, ball1
 
 
-class FrameDataset(Dataset):
-    def __init__(self, folder, fname, cam_02, cam_03):
-        self.folder, self.cam_02, self.cam_03 = folder, cam_02, cam_03
-        min_frame, max_frame = map(int, osp.splitext(fname)[0].split('_'))
-        spath = osp.join(DATA_2D_SEMANTICS, folder, 'semantic')
-        patt = re.compile(r'^(\d{10})$')
-        # valid_frames = np.array(list(map(int, filter(patt.match, os.listdir(spath)))))
-        # valid_frames = valid_frames[(valid_frames >= min_frame) & (valid_frames <= max_frame)]
-        # valid_mask = np.isin(frames, valid_frames)
-        # self.frames = frames[valid_mask]
-        # self.poses = poses[valid_mask].reshape(-1, 3 * 4)
-        cam_02 = CameraFisheye(KITTI_360, seq=folder, cam_id=2)
-        cam_03 = CameraFisheye(KITTI_360, seq=folder, cam_id=3)
+def load_semantics(sequence, frame):
+    semantics_path = osp.join(DATA_2D_SEMANTICS, sequence, 'semantic', f'{frame:010d}')
+    semantics = []
+    for i in range(6):
+        path = osp.join(semantics_path, f'{i}.png')
+        semantic = Image.open(path)
+        semantic = np.array(semantic)
+        semantics.append(semantic)
+    return np.array(semantics)
+
+
+def load_neighbors(sequence, min_frame, max_frame, frames):
+    out_path = osp.join(DATA_NEIGHBOURS, sequence, f'{min_frame:010d}_{max_frame:010d}')
+    neighbors_path = osp.join(out_path, 'neighbors.npy')
+    frames_path = osp.join(out_path, 'frames.npy')
+    frames0 = np.load(frames_path)
+    assert np.all(frames0 == frames)
+    return np.load(neighbors_path)
+
+
+def process_cam_pose(cam_pose, sphere, semantics, side0, semantic3d, cam, frame):
+    pcd = open3d.geometry.PointCloud()
+    pcd.points = open3d.utility.Vector3dVector(sphere)
+    camera = cam_pose[:3, 3]
+    diameter = np.linalg.norm(np.asarray(pcd.get_max_bound()) - np.asarray(pcd.get_min_bound()))
+    radius = diameter * 100
+    _, pt_map = pcd.hidden_point_removal(camera, radius)
+    pt_map = np.array(pt_map)
+    sphere = sphere[pt_map]
+    rotation = R1.T
+    points_local = world2cam(cam, sphere, frame)
+    for side in range(side0, side0 + 3):
+        semantic = semantics[side]
+        points_local = rotation @ points_local
+        u, v, depth = cam_00.cam2image(points_local)
+        mask = (u >= 0) & (u < S) & (v >= 0) & (v < S) & (depth > 0)
+        non_zero_mask = semantic[u[mask], v[mask]] != 0
+        mask[mask] = non_zero_mask
+        u, v, depth = u[mask], v[mask], depth[mask]
+        semantic3d[pt_map[mask], semantic[u, v]] += 1
+        rotation = R1 @ rotation
+
+
+def process_frame(sequence, frame, cam_pose0, cam_pose1, sphere, semantic, cam_02, cam_03):
+    if LOADING_ENABLED and osp.exists(osp.join(DATA_3D_SEMANTICS, sequence, 'semantic', f'{frame:010d}.npy')):
+        return np.load(osp.join(DATA_3D_SEMANTICS, sequence, 'semantic', f'{frame:010d}.npy'))
+    semantic3d = np.zeros((sphere.shape[0], 256), dtype=np.int32)
+    process_cam_pose(cam_pose0, sphere, semantic, 0, semantic3d, cam_02, frame)
+    process_cam_pose(cam_pose1, sphere, semantic, 3, semantic3d, cam_03, frame)
+    semantic3d = np.argmax(semantic3d, axis=1).astype(np.uint8)
+    if CACHING_ENABLED:
+        os.makedirs(osp.join(DATA_3D_SEMANTICS, sequence, 'semantic'), exist_ok=True)
+        np.save(osp.join(DATA_3D_SEMANTICS, sequence, 'semantic', f'{frame:010d}.npy'), semantic3d)
+    return semantic3d
+
+
+class FramesDataset(Dataset):
+    def __init__(self, sequence, cam_02, cam_03, min_frame, max_frame, points=None, frames=None, semantics=None,
+                 neighbors_index=None):
+        self.sequence, self.cam_02, self.cam_03 = sequence, cam_02, cam_03
+        self.min_frame, self.max_frame = min_frame, max_frame
+        cam_02 = CameraFisheye(KITTI_360, seq=sequence, cam_id=2)
+        cam_03 = CameraFisheye(KITTI_360, seq=sequence, cam_id=3)
         self.cam2world0 = cam_02.cam2world
         self.cam2world1 = cam_03.cam2world
-        self.frames = list(filter(patt.match, os.listdir(spath)))
-        self.frames = list(filter(lambda x: min_frame <= int(x) <= max_frame, self.frames))
-        self.frames = list(
-            filter(lambda x: not osp.exists(osp.join(DATA_3D_SEMANTICS, folder, 'semantic', f'{x}.npy')), self.frames))
-        self.frames = list(map(int, self.frames))
-        self.frames = list(filter(lambda x: x in self.cam2world0, self.frames))
-        self.frames = list(filter(lambda x: x in self.cam2world1, self.frames))
-        fpath = osp.join(KITTI_360, KITTI_DATA_3D_SEMANTICS, folder, 'static', fname)
-        ply = read_ply(fpath)
-        self.points = np.array([ply['x'], ply['y'], ply['z']]).T
-        self.colors = np.array([ply['red'], ply['green'], ply['blue']]).T
-        pcd = open3d.geometry.PointCloud()
-        pcd.points = open3d.utility.Vector3dVector(self.points)
-        diameter = np.linalg.norm(
-            np.asarray(pcd.get_max_bound()) - np.asarray(pcd.get_min_bound()))
-        self.radius = diameter * 1000
+        if points is None:
+            file = f'{min_frame:010d}_{max_frame:010d}.ply'
+            path = osp.join(KITTI_360, KITTI_DATA_3D_SEMANTICS, sequence, 'static', file)
+            ply = read_ply(path)
+            self.points = np.array([ply['x'], ply['y'], ply['z']]).T
+        else:
+            self.points = points
+        if frames is None:
+            frame_pattern = re.compile(r'^\d{10}$')
+            path = osp.join(DATA_2D_SEMANTICS, sequence, 'semantic')
+            self.frames = list(filter(frame_pattern.match, os.listdir(path)))
+            self.frames = list(map(int, self.frames))
+            self.frames = list(filter(lambda x: min_frame <= x <= max_frame, self.frames))
+            self.frames = list(filter(lambda x: x in self.cam2world0 and x in self.cam2world1, self.frames))
+            self.semantics = None
+            self.neighbors_index = load_neighbors(sequence, min_frame, max_frame, self.frames)
+        else:
+            self.frames = np.array(frames)
+            mask = list(map(lambda x: x in self.cam2world0 and x in self.cam2world1, self.frames))
+            self.frames = self.frames[mask]
+            self.semantics = semantics[mask]
+            self.neighbors_index = neighbors_index[mask]
 
     def __len__(self):
         return len(self.frames)
 
     def __getitem__(self, idx):
         frame = self.frames[idx]
-        curr_pose0 = self.cam2world0[frame]
-        curr_pose1 = self.cam2world1[frame]
-        ball0, ball1 = search_balls(curr_pose0, curr_pose1, self.points, self.folder, frame, self.radius)
-        us, vs, masks = project_vertices_ball(frame, self.points, self.folder, self.cam_02, self.cam_03, ball0, ball1)
-        segment_semantic_ball(frame, self.points, self.colors, self.folder, ball0, ball1, us, vs, masks)
-        return 0
+        cam_pose0 = self.cam2world0[frame]
+        cam_pose1 = self.cam2world1[frame]
+        if self.semantics is not None:
+            semantic = self.semantics[idx]
+        else:
+            semantic = load_semantics(self.sequence, frame)
+        neighbors_idx = self.neighbors_index[idx]
+        sphere = self.points[neighbors_idx]
+        semantic = np.array(semantic, dtype=np.uint8)
+        semantic3d = process_frame(self.sequence, frame, cam_pose0, cam_pose1, sphere, semantic, self.cam_02,
+                                   self.cam_03)
+        return semantic3d, frame
 
 
-def process_sequence(sequence, image_lower_bound, image_upper_bound):
-    # frames, poses = frames_poses(sequence)
+def process_sequence(sequence, min_frame, max_frame, points=None, frames=None, semantics=None, neighbors_index=None):
     cam_02 = CameraFisheye(KITTI_360, sequence, 2)
     cam_03 = CameraFisheye(KITTI_360, sequence, 3)
-    file = f'{image_lower_bound:010d}_{image_upper_bound:010d}.ply'
-    dataset = FrameDataset(sequence, file, cam_02, cam_03)
+    dataset = FramesDataset(sequence, cam_02, cam_03, min_frame, max_frame, points, frames, semantics, neighbors_index)
     dataloader = DataLoader(dataset, batch_size=4, num_workers=4, shuffle=False)
-    list(tqdm(dataloader, total=len(dataloader)))
+    semantics3d = []
+    frames0 = []
+    for semantic3d, frame in tqdm(dataloader, total=len(dataloader)):
+        semantics3d.append(semantic3d)
+        frames0.append(frame)
+    semantics3d = np.concatenate(semantics3d, axis=0)
+    frames0 = np.concatenate(frames0, axis=0)
+    return semantics3d, frames0
 
 
 if __name__ == '__main__':
