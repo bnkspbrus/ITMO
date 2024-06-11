@@ -22,7 +22,7 @@ def load_points(sequence, min_frame, max_frame):
     return points, colors, semantic, instance
 
 
-def eval_semantic(model_name='segformer', merge_method='cluster'):
+def eval_semantic(model_name='segformer'):
     for window in WINDOWS['val']:
         sequence = window.split('/')[0]
         min_frame, max_frame = map(int, window.split('/')[1].split('_'))
